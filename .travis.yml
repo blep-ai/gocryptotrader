@@ -3,6 +3,9 @@ matrix:
     - language: node_js
       node_js:
         - '10'
+      cache:
+        directories:
+          - web/node_modules
       before_install:
         - cd web/
       install:
@@ -21,7 +24,6 @@ matrix:
       env:
         - GO111MODULE=on
       install: true
-      
       script:
         - make check
       after_success:
