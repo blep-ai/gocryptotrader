@@ -7,7 +7,6 @@ import (
 	"github.com/idoall/gocryptotrader/currency"
 	"github.com/idoall/gocryptotrader/exchanges/protocol"
 	"github.com/idoall/gocryptotrader/exchanges/request"
-	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 // Endpoint authentication types

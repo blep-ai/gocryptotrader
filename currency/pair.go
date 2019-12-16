@@ -4,11 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-<<<<<<< HEAD
-
-	"github.com/idoall/gocryptotrader/common"
-=======
->>>>>>> upstrem/master
 )
 
 // NewPairDelimiter splits the desired currency string at delimeter, the returns

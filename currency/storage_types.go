@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
-	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
+	"github.com/idoall/gocryptotrader/currency/coinmarketcap"
+	"github.com/idoall/gocryptotrader/currency/forexprovider"
 )
 
 // CurrencyFileUpdateDelay defines the rate at which the currency.json file is

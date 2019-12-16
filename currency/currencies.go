@@ -1,13 +1,9 @@
 package currency
 
-<<<<<<< HEAD
-import "github.com/idoall/gocryptotrader/common"
-=======
 import (
 	"encoding/json"
 	"strings"
 )
->>>>>>> upstrem/master
 
 // NewCurrenciesFromStringArray returns a Currencies object from strings
 func NewCurrenciesFromStringArray(currencies []string) Currencies {
