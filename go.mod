@@ -8,9 +8,6 @@ require (
 	github.com/google/go-querystring v1.0.0
 	github.com/gorilla/mux v1.7.3
 	github.com/gorilla/websocket v1.4.0
-<<<<<<< HEAD
-	github.com/idoall/TokenExchangeCommon v0.0.0-20191009043045-c8dec284ca31
-=======
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.0
 	github.com/grpc-ecosystem/grpc-gateway v1.11.3
 	github.com/kat-co/vala v0.0.0-20170210184112-42e1d8b61f12
@@ -21,7 +18,6 @@ require (
 	github.com/spf13/viper v1.4.0
 	github.com/thrasher-corp/goose v2.7.0-rc4.0.20191002032028-0f2c2a27abdb+incompatible
 	github.com/thrasher-corp/sqlboiler v1.0.1-0.20191001234224-71e17f37a85e
->>>>>>> upstrem/master
 	github.com/toorop/go-pusher v0.0.0-20180521062818-4521e2eb39fb
 	github.com/urfave/cli v1.20.0
 	golang.org/x/crypto v0.0.0-20190605123033-f99c8df09eb5

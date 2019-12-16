@@ -7,26 +7,13 @@ import (
 	"runtime"
 	"time"
 
-<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/communications"
-	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/connchecker"
-	"github.com/idoall/gocryptotrader/currency"
-	"github.com/idoall/gocryptotrader/currency/coinmarketcap"
-	exchange "github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/core"
+	"github.com/idoall/gocryptotrader/dispatch"
+	"github.com/idoall/gocryptotrader/engine"
+	"github.com/idoall/gocryptotrader/exchanges/request"
 	log "github.com/idoall/gocryptotrader/logger"
-	"github.com/idoall/gocryptotrader/ntpclient"
-	"github.com/idoall/gocryptotrader/portfolio"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/core"
-	"github.com/thrasher-corp/gocryptotrader/dispatch"
-	"github.com/thrasher-corp/gocryptotrader/engine"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"github.com/thrasher-corp/gocryptotrader/signaler"
->>>>>>> upstrem/master
+	"github.com/idoall/gocryptotrader/signaler"
 )
 
 func main() {
@@ -107,120 +94,6 @@ func main() {
 	fmt.Println(core.Banner)
 	fmt.Println(core.Version(false))
 
-<<<<<<< HEAD
-	err = common.CreateDir(bot.dataDir)
-	if err != nil {
-		log.Fatalf("Failed to open/create data directory: %s. Err: %s", bot.dataDir, err)
-	}
-	log.Debugf("Using data directory: %s.\n", bot.dataDir)
-
-	err = bot.config.CheckLoggerConfig()
-	if err != nil {
-		log.Errorf("Failed to configure logger reason: %s", err)
-	}
-
-	err = log.SetupLogger()
-	if err != nil {
-		log.Errorf("Failed to setup logger reason: %s", err)
-	}
-
-	ActivateNTP()
-	ActivateConnectivityMonitor()
-	AdjustGoMaxProcs()
-
-	log.Debugf("Bot '%s' started.\n", bot.config.Name)
-	log.Debugf("Bot dry run mode: %v.\n", common.IsEnabled(bot.dryRun))
-
-	log.Debugf("Available Exchanges: %d. Enabled Exchanges: %d.\n",
-		len(bot.config.Exchanges),
-		bot.config.CountEnabledExchanges())
-
-	// 设置全局的 http client 超时时间
-	common.HTTPClient = common.NewHTTPClientWithTimeout(bot.config.GlobalHTTPTimeout)
-	log.Debugf("Global HTTP request timeout: %v.\n", common.HTTPClient.Timeout)
-
-	SetupExchanges()
-	if len(bot.exchanges) == 0 {
-		log.Fatal("No exchanges were able to be loaded. Exiting")
-	}
-
-	log.Debugf("Starting communication mediums..")
-	cfg := bot.config.GetCommunicationsConfig()
-	bot.comms = communications.NewComm(&cfg)
-	bot.comms.GetEnabledCommunicationMediums()
-
-	var newFxSettings []currency.FXSettings
-	for _, d := range bot.config.Currency.ForexProviders {
-		newFxSettings = append(newFxSettings, currency.FXSettings(d))
-	}
-
-	err = currency.RunStorageUpdater(currency.BotOverrides{
-		Coinmarketcap:       *Coinmarketcap,
-		FxCurrencyConverter: *FxCurrencyConverter,
-		FxCurrencyLayer:     *FxCurrencyLayer,
-		FxFixer:             *FxFixer,
-		FxOpenExchangeRates: *FxOpenExchangeRates,
-	},
-		&currency.MainConfiguration{
-			ForexProviders:         newFxSettings,
-			CryptocurrencyProvider: coinmarketcap.Settings(bot.config.Currency.CryptocurrencyProvider),
-			Cryptocurrencies:       bot.config.Currency.Cryptocurrencies,
-			FiatDisplayCurrency:    bot.config.Currency.FiatDisplayCurrency,
-			CurrencyDelay:          bot.config.Currency.CurrencyFileUpdateDuration,
-			FxRateDelay:            bot.config.Currency.ForeignExchangeUpdateDuration,
-		},
-		bot.dataDir,
-		*verbosity)
-	if err != nil {
-		log.Fatalf("currency updater system failed to start %v", err)
-
-	}
-
-	bot.portfolio = &portfolio.Portfolio
-	bot.portfolio.SeedPortfolio(bot.config.Portfolio)
-	SeedExchangeAccountInfo(GetAllEnabledExchangeAccountInfo().Data)
-
-	ActivateWebServer()
-
-	go portfolio.StartPortfolioWatcher()
-
-	go TickerUpdaterRoutine()
-	go OrderbookUpdaterRoutine()
-	go WebsocketRoutine(*verbosity)
-
-	<-bot.shutdown
-	Shutdown()
-}
-
-// ActivateWebServer Sets up a local web server
-func ActivateWebServer() {
-	if bot.config.Webserver.Enabled {
-		listenAddr := bot.config.Webserver.ListenAddress
-		log.Debugf(
-			"HTTP Webserver support enabled. Listen URL: http://%s:%d/\n",
-			common.ExtractHost(listenAddr), common.ExtractPort(listenAddr),
-		)
-
-		router := NewRouter()
-		go func() {
-			err := http.ListenAndServe(listenAddr, router)
-			if err != nil {
-				log.Fatal(err)
-			}
-		}()
-
-		log.Debugln("HTTP Webserver started successfully.")
-		log.Debugln("Starting websocket handler.")
-		StartWebsocketHandler()
-	} else {
-		log.Debugln("HTTP RESTful Webserver support disabled.")
-	}
-}
-
-// ActivateConnectivityMonitor Sets up internet connectivity monitor
-func ActivateConnectivityMonitor() {
-=======
->>>>>>> upstrem/master
 	var err error
 	settings.CheckParamInteraction = true
 	engine.Bot, err = engine.NewFromSettings(&settings)
