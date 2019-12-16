@@ -1,17 +1,19 @@
 package base
 
 import (
-	"fmt"
-	"sync"
 	"time"
+<<<<<<< HEAD
 
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+=======
+>>>>>>> upstrem/master
 )
 
 // global vars contain staged update data that will be sent to the communication
 // mediums
 var (
+<<<<<<< HEAD
 	// map[exchangeName]
 	TickerStaged    map[string]map[string]map[string]ticker.Price
 	OrderbookStaged map[string]map[string]map[string]Orderbook
@@ -51,6 +53,11 @@ type Settings struct {
 	EnabledCommunications string
 }
 
+=======
+	ServiceStarted time.Time
+)
+
+>>>>>>> upstrem/master
 // Base enforces standard variables across communication packages
 type Base struct {
 	Name      string
@@ -61,9 +68,14 @@ type Base struct {
 
 // Event is a generalise event type
 type Event struct {
-	Type         string
-	GainLoss     string
-	TradeDetails string
+	Type    string
+	Message string
+}
+
+// CommsStatus stores the status of a comms relayer
+type CommsStatus struct {
+	Enabled   bool `json:"enabled"`
+	Connected bool `json:"connected"`
 }
 
 // IsEnabled returns if the comms package has been enabled in the configuration
@@ -80,83 +92,6 @@ func (b *Base) IsConnected() bool {
 // GetName returns a package name
 func (b *Base) GetName() string {
 	return b.Name
-}
-
-// GetTicker returns staged ticker data
-func (b *Base) GetTicker(exchangeName string) string {
-	m.Lock()
-	defer m.Unlock()
-
-	tickerPrice, ok := TickerStaged[exchangeName]
-	if !ok {
-		return ""
-	}
-
-	var tickerPrices []ticker.Price
-	for x := range tickerPrice {
-		for y := range tickerPrice[x] {
-			tickerPrices = append(tickerPrices, tickerPrice[x][y])
-		}
-	}
-
-	var packagedTickers []string
-	for i := range tickerPrices {
-		packagedTickers = append(packagedTickers, fmt.Sprintf(
-			"Currency Pair: %s Ask: %f, Bid: %f High: %f Last: %f Low: %f ATH: %f Volume: %f",
-			tickerPrices[i].Pair,
-			tickerPrices[i].Ask,
-			tickerPrices[i].Bid,
-			tickerPrices[i].High,
-			tickerPrices[i].Last,
-			tickerPrices[i].Low,
-			tickerPrices[i].PriceATH,
-			tickerPrices[i].Volume))
-	}
-	return common.JoinStrings(packagedTickers, "\n")
-}
-
-// GetOrderbook returns staged orderbook data
-func (b *Base) GetOrderbook(exchangeName string) string {
-	m.Lock()
-	defer m.Unlock()
-
-	orderbook, ok := OrderbookStaged[exchangeName]
-	if !ok {
-		return ""
-	}
-
-	var orderbooks []Orderbook
-	for _, x := range orderbook {
-		for _, y := range x {
-			orderbooks = append(orderbooks, y)
-		}
-	}
-
-	var packagedOrderbooks []string
-	for i := range orderbooks {
-		packagedOrderbooks = append(packagedOrderbooks, fmt.Sprintf(
-			"Currency Pair: %s AssetType: %s, LastUpdated: %s TotalAsks: %f TotalBids: %f",
-			orderbooks[i].CurrencyPair,
-			orderbooks[i].AssetType,
-			orderbooks[i].LastUpdated,
-			orderbooks[i].TotalAsks,
-			orderbooks[i].TotalBids))
-	}
-	return common.JoinStrings(packagedOrderbooks, "\n")
-}
-
-// GetPortfolio returns staged portfolio info
-func (b *Base) GetPortfolio() string {
-	m.Lock()
-	defer m.Unlock()
-	return fmt.Sprintf("%v", PortfolioStaged)
-}
-
-// GetSettings returns stage setting info
-func (b *Base) GetSettings() string {
-	m.Lock()
-	defer m.Unlock()
-	return fmt.Sprintf("%v", SettingsStaged)
 }
 
 // GetStatus returns status data

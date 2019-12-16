@@ -2,12 +2,14 @@ package anx
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
+<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
@@ -16,6 +18,12 @@ import (
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
 	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
+=======
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
+>>>>>>> upstrem/master
 )
 
 const (
@@ -46,80 +54,11 @@ type ANX struct {
 	exchange.Base
 }
 
-// SetDefaults sets current default settings
-func (a *ANX) SetDefaults() {
-	a.Name = "ANX"
-	a.Enabled = false
-	a.TakerFee = 0.02
-	a.MakerFee = 0.01
-	a.Verbose = false
-	a.RESTPollingDelay = 10
-	a.RequestCurrencyPairFormat.Delimiter = ""
-	a.RequestCurrencyPairFormat.Uppercase = true
-	a.RequestCurrencyPairFormat.Index = ""
-	a.ConfigCurrencyPairFormat.Delimiter = "_"
-	a.ConfigCurrencyPairFormat.Uppercase = true
-	a.ConfigCurrencyPairFormat.Index = ""
-	a.APIWithdrawPermissions = exchange.WithdrawCryptoWithEmail |
-		exchange.AutoWithdrawCryptoWithSetup |
-		exchange.WithdrawCryptoWith2FA |
-		exchange.WithdrawFiatViaWebsiteOnly
-	a.AssetTypes = []string{ticker.Spot}
-	a.SupportsAutoPairUpdating = true
-	a.SupportsRESTTickerBatching = false
-	a.Requester = request.New(a.Name,
-		request.NewRateLimit(time.Second, anxAuthRate),
-		request.NewRateLimit(time.Second, anxUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	a.APIUrlDefault = anxAPIURL
-	a.APIUrl = a.APIUrlDefault
-	a.Websocket = wshandler.New()
-}
-
-// Setup is run on startup to setup exchange with config values
-func (a *ANX) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		a.SetEnabled(false)
-	} else {
-		a.Enabled = true
-		a.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		a.SetAPIKeys(exch.APIKey, exch.APISecret, "", true)
-		a.SetHTTPClientTimeout(exch.HTTPTimeout)
-		a.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		a.RESTPollingDelay = exch.RESTPollingDelay
-		a.Verbose = exch.Verbose
-		a.HTTPDebugging = exch.HTTPDebugging
-		a.BaseCurrencies = exch.BaseCurrencies
-		a.AvailablePairs = exch.AvailablePairs
-		a.EnabledPairs = exch.EnabledPairs
-		err := a.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = a.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = a.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = a.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = a.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-}
-
 // GetCurrencies returns a list of supported currencies (both fiat
 // and cryptocurrencies)
 func (a *ANX) GetCurrencies() (CurrenciesStore, error) {
 	var result CurrenciesStaticResponse
-	path := fmt.Sprintf("%sapi/3/%s", a.APIUrl, anxCurrencies)
+	path := fmt.Sprintf("%sapi/3/%s", a.API.Endpoints.URL, anxCurrencies)
 
 	err := a.SendHTTPRequest(path, &result)
 	if err != nil {
@@ -132,14 +71,14 @@ func (a *ANX) GetCurrencies() (CurrenciesStore, error) {
 // GetTicker returns the current ticker
 func (a *ANX) GetTicker(currency string) (Ticker, error) {
 	var t Ticker
-	path := fmt.Sprintf("%sapi/2/%s/%s", a.APIUrl, currency, anxTicker)
+	path := fmt.Sprintf("%sapi/2/%s/%s", a.API.Endpoints.URL, currency, anxTicker)
 	return t, a.SendHTTPRequest(path, &t)
 }
 
 // GetDepth returns current orderbook depth.
 func (a *ANX) GetDepth(currency string) (Depth, error) {
 	var depth Depth
-	path := fmt.Sprintf("%sapi/2/%s/%s", a.APIUrl, currency, anxDepth)
+	path := fmt.Sprintf("%sapi/2/%s/%s", a.API.Endpoints.URL, currency, anxDepth)
 	return depth, a.SendHTTPRequest(path, &depth)
 }
 
@@ -204,7 +143,6 @@ func (a *ANX) GetDataToken() (string, error) {
 // NewOrder sends a new order request to the exchange.
 func (a *ANX) NewOrder(orderType string, buy bool, tradedCurrency string, tradedCurrencyAmount float64, settlementCurrency string, settlementCurrencyAmount, limitPriceSettlement float64,
 	replace bool, replaceUUID string, replaceIfActive bool) (string, error) {
-
 	req := make(map[string]interface{})
 	var order Order
 	order.OrderType = orderType
@@ -417,7 +355,7 @@ func (a *ANX) SendHTTPRequest(path string, result interface{}) error {
 
 // SendAuthenticatedHTTPRequest sends a authenticated HTTP request
 func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interface{}, result interface{}) error {
-	if !a.AuthenticatedAPISupport {
+	if !a.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, a.Name)
 	}
 
@@ -430,23 +368,23 @@ func (a *ANX) SendAuthenticatedHTTPRequest(path string, params map[string]interf
 		req[key] = value
 	}
 
-	PayloadJSON, err := common.JSONEncode(req)
+	PayloadJSON, err := json.Marshal(req)
 	if err != nil {
 		return errors.New("unable to JSON request")
 	}
 
 	if a.Verbose {
-		log.Debugf("Request JSON: %s\n", PayloadJSON)
+		log.Debugf(log.ExchangeSys, "Request JSON: %s\n", PayloadJSON)
 	}
 
-	hmac := common.GetHMAC(common.HashSHA512, []byte(path+string("\x00")+string(PayloadJSON)), []byte(a.APISecret))
+	hmac := crypto.GetHMAC(crypto.HashSHA512, []byte(path+string("\x00")+string(PayloadJSON)), []byte(a.API.Credentials.Secret))
 	headers := make(map[string]string)
-	headers["Rest-Key"] = a.APIKey
-	headers["Rest-Sign"] = common.Base64Encode(hmac)
+	headers["Rest-Key"] = a.API.Credentials.Key
+	headers["Rest-Sign"] = crypto.Base64Encode(hmac)
 	headers["Content-Type"] = "application/json"
 
 	return a.SendPayload(http.MethodPost,
-		a.APIUrl+path,
+		a.API.Endpoints.URL+path,
 		headers,
 		bytes.NewBuffer(PayloadJSON),
 		result,
@@ -486,9 +424,9 @@ func (a *ANX) calculateTradingFee(purchasePrice, amount float64, isMaker bool) f
 	var fee float64
 
 	if isMaker {
-		fee = a.MakerFee * amount * purchasePrice
+		fee = 0.01 * amount * purchasePrice
 	} else {
-		fee = a.TakerFee * amount * purchasePrice
+		fee = 0.02 * amount * purchasePrice
 	}
 
 	return fee
@@ -517,7 +455,7 @@ func (a *ANX) GetAccountInformation() (AccountInformation, error) {
 	}
 
 	if response.ResultCode != "OK" {
-		log.Errorf("Response code is not OK: %s\n", response.ResultCode)
+		log.Errorf(log.ExchangeSys, "Response code is not OK: %s\n", response.ResultCode)
 		return response, errors.New(response.ResultCode)
 	}
 	return response, nil
@@ -540,7 +478,7 @@ func (a *ANX) CheckAPIWithdrawPermission() (bool, error) {
 	}
 
 	if !apiAllowsWithdraw {
-		log.Warn("API key is missing withdrawal permissions")
+		log.Warn(log.ExchangeSys, "API key is missing withdrawal permissions")
 	}
 
 	return apiAllowsWithdraw, nil

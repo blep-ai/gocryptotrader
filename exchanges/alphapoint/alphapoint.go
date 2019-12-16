@@ -2,17 +2,24 @@ package alphapoint
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
+	"strings"
 
 	"github.com/gorilla/websocket"
+<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
+=======
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+>>>>>>> upstrem/master
 )
 
 const (
@@ -46,22 +53,6 @@ const (
 type Alphapoint struct {
 	exchange.Base
 	WebsocketConn *websocket.Conn
-}
-
-// SetDefaults sets current default settings
-func (a *Alphapoint) SetDefaults() {
-	a.APIUrl = alphapointDefaultAPIURL
-	a.WebsocketURL = alphapointDefaultWebsocketURL
-	a.AssetTypes = []string{ticker.Spot}
-	a.SupportsAutoPairUpdating = false
-	a.SupportsRESTTickerBatching = false
-	a.APIWithdrawPermissions = exchange.WithdrawCryptoWith2FA |
-		exchange.AutoWithdrawCryptoWithAPIPermission |
-		exchange.NoFiatWithdrawals
-	a.Requester = request.New(a.Name,
-		request.NewRateLimit(time.Minute*10, alphapointAuthRate),
-		request.NewRateLimit(time.Minute*10, alphapointUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 }
 
 // GetTicker returns current ticker information from Alphapoint for a selected
@@ -362,7 +353,7 @@ func (a *Alphapoint) WithdrawCoins(symbol, product, address string, amount float
 }
 
 func (a *Alphapoint) convertOrderTypeToOrderTypeNumber(orderType string) (orderTypeNumber int64) {
-	if orderType == exchange.MarketOrderType.ToString() {
+	if orderType == order.Market.String() {
 		orderTypeNumber = 1
 	}
 
@@ -527,9 +518,9 @@ func (a *Alphapoint) GetOrderFee(symbol, side string, quantity, price float64) (
 func (a *Alphapoint) SendHTTPRequest(method, path string, data map[string]interface{}, result interface{}) error {
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
-	path = fmt.Sprintf("%s/ajax/v%s/%s", a.APIUrl, alphapointAPIVersion, path)
+	path = fmt.Sprintf("%s/ajax/v%s/%s", a.API.Endpoints.URL, alphapointAPIVersion, path)
 
-	PayloadJSON, err := common.JSONEncode(data)
+	PayloadJSON, err := json.Marshal(data)
 	if err != nil {
 		return errors.New("unable to JSON request")
 	}
@@ -548,7 +539,7 @@ func (a *Alphapoint) SendHTTPRequest(method, path string, data map[string]interf
 
 // SendAuthenticatedHTTPRequest sends an authenticated request
 func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[string]interface{}, result interface{}) error {
-	if !a.AuthenticatedAPISupport {
+	if !a.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, a.Name)
 	}
 
@@ -556,14 +547,15 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(method, path string, data map[
 
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
-	data["apiKey"] = a.APIKey
+	data["apiKey"] = a.API.Credentials.Key
 	data["apiNonce"] = n
-	hmac := common.GetHMAC(common.HashSHA256, []byte(n.String()+a.ClientID+a.APIKey),
-		[]byte(a.APISecret))
-	data["apiSig"] = common.StringToUpper(common.HexEncodeToString(hmac))
-	path = fmt.Sprintf("%s/ajax/v%s/%s", a.APIUrl, alphapointAPIVersion, path)
+	hmac := crypto.GetHMAC(crypto.HashSHA256,
+		[]byte(n.String()+a.API.Credentials.ClientID+a.API.Credentials.Key),
+		[]byte(a.API.Credentials.Secret))
+	data["apiSig"] = strings.ToUpper(crypto.HexEncodeToString(hmac))
+	path = fmt.Sprintf("%s/ajax/v%s/%s", a.API.Endpoints.URL, alphapointAPIVersion, path)
 
-	PayloadJSON, err := common.JSONEncode(data)
+	PayloadJSON, err := json.Marshal(data)
 	if err != nil {
 		return errors.New("unable to JSON request")
 	}

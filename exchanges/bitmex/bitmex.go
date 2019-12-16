@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
@@ -16,6 +17,12 @@ import (
 	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
+=======
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+>>>>>>> upstrem/master
 )
 
 // Bitmex is the overarching type across this package
@@ -111,6 +118,7 @@ const (
 	ContractUpsideProfit
 )
 
+<<<<<<< HEAD
 // SetDefaults sets the basic defaults for Bitmex
 func (b *Bitmex) SetDefaults() {
 	b.Name = "Bitmex"
@@ -213,6 +221,8 @@ func (b *Bitmex) Setup(exch *config.ExchangeConfig) {
 	}
 }
 
+=======
+>>>>>>> upstrem/master
 // GetAnnouncement returns the general announcements from Bitmex
 // 获取公告
 func (b *Bitmex) GetAnnouncement() ([]Announcement, error) {
@@ -439,9 +449,8 @@ func (b *Bitmex) GetCurrentNotifications() ([]Notification, error) {
 // 查看订单信息
 func (b *Bitmex) GetOrders(params *OrdersRequest) ([]Order, error) {
 	var orders []Order
-
 	return orders, b.SendAuthenticatedHTTPRequest(http.MethodGet,
-		fmt.Sprintf("%v%v", bitmexEndpointOrder, ""),
+		bitmexEndpointOrder,
 		params,
 		&orders)
 }
@@ -897,8 +906,12 @@ func (b *Bitmex) GetWalletSummary(currency string) ([]TransactionInfo, error) {
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bitmex) SendHTTPRequest(path string, params Parameter, result interface{}) error {
 	var respCheck interface{}
+<<<<<<< HEAD
 	path = b.APIUrl + path
 
+=======
+	path = b.API.Endpoints.URL + path
+>>>>>>> upstrem/master
 	if params != nil {
 		if !params.IsNil() {
 			encodedPath, err := params.ToURLVals(path)
@@ -940,7 +953,7 @@ func (b *Bitmex) SendHTTPRequest(path string, params Parameter, result interface
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to bitmex
 func (b *Bitmex) SendAuthenticatedHTTPRequest(verb, path string, params Parameter, result interface{}) error {
-	if !b.AuthenticatedAPISupport {
+	if !b.AllowAuthenticatedRequest() {
 		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
 			b.Name)
 	}
@@ -952,7 +965,7 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(verb, path string, params Paramete
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
 	headers["api-expires"] = timestampNew
-	headers["api-key"] = b.APIKey
+	headers["api-key"] = b.API.Credentials.Key
 
 	var payload string
 	if params != nil {
@@ -960,23 +973,23 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(verb, path string, params Paramete
 		if err != nil {
 			return err
 		}
-		data, err := common.JSONEncode(params)
+		data, err := json.Marshal(params)
 		if err != nil {
 			return err
 		}
 		payload = string(data)
 	}
 
-	hmac := common.GetHMAC(common.HashSHA256,
+	hmac := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(verb+"/api/v1"+path+timestampNew+payload),
-		[]byte(b.APISecret))
+		[]byte(b.API.Credentials.Secret))
 
-	headers["api-signature"] = common.HexEncodeToString(hmac)
+	headers["api-signature"] = crypto.HexEncodeToString(hmac)
 
 	var respCheck interface{}
 
 	err := b.SendPayload(verb,
-		b.APIUrl+path,
+		b.API.Endpoints.URL+path,
 		headers,
 		bytes.NewBuffer([]byte(payload)),
 		&respCheck,
@@ -1001,14 +1014,23 @@ func (b *Bitmex) CaptureError(resp, reType interface{}) error {
 		return err
 	}
 
+<<<<<<< HEAD
 	// err = common.JSONDecode(marshalled, &Error)
 	// if err == nil {
 	// 	return fmt.Errorf("bitmex error %s: %s",
 	// 		Error.Error.Name,
 	// 		Error.Error.Message)
 	// }
+=======
+	err = json.Unmarshal(marshalled, &Error)
+	if err == nil {
+		return fmt.Errorf("bitmex error %s: %s",
+			Error.Error.Name,
+			Error.Error.Message)
+	}
+>>>>>>> upstrem/master
 
-	return common.JSONDecode(marshalled, reType)
+	return json.Unmarshal(marshalled, reType)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

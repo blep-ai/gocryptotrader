@@ -1,10 +1,16 @@
 package currency
 
 import (
+	"encoding/json"
 	"math/rand"
+	"strings"
 
+<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
 	log "github.com/idoall/gocryptotrader/logger"
+=======
+	log "github.com/thrasher-corp/gocryptotrader/logger"
+>>>>>>> upstrem/master
 )
 
 // NewPairsFromStrings takes in currency pair strings and returns a currency
@@ -21,9 +27,6 @@ func NewPairsFromStrings(pairs []string) Pairs {
 	return ps
 }
 
-// Pairs defines a list of pairs
-type Pairs []Pair
-
 // Strings returns a slice of strings referring to each currency pair
 func (p Pairs) Strings() []string {
 	var list []string
@@ -35,7 +38,7 @@ func (p Pairs) Strings() []string {
 
 // Join returns a comma separated list of currency pairs
 func (p Pairs) Join() string {
-	return common.JoinStrings(p.Strings(), ",")
+	return strings.Join(p.Strings(), ",")
 }
 
 // Format formats the pair list to the exchange format configuration
@@ -50,7 +53,8 @@ func (p Pairs) Format(delimiter, index string, uppercase bool) Pairs {
 		if index != "" {
 			newP, err := NewPairFromIndex(p[i].String(), index)
 			if err != nil {
-				log.Errorf("failed to create NewPairFromIndex. Err: %s", err)
+				log.Errorf(log.Global,
+					"failed to create NewPairFromIndex. Err: %s\n", err)
 				continue
 			}
 			formattedPair.Base = newP.Base
@@ -69,13 +73,18 @@ func (p Pairs) Format(delimiter, index string, uppercase bool) Pairs {
 // UnmarshalJSON comforms type to the umarshaler interface
 func (p *Pairs) UnmarshalJSON(d []byte) error {
 	var pairs string
-	err := common.JSONDecode(d, &pairs)
+	err := json.Unmarshal(d, &pairs)
 	if err != nil {
 		return err
 	}
 
+	// If no pairs enabled in config just continue
+	if pairs == "" {
+		return nil
+	}
+
 	var allThePairs Pairs
-	for _, data := range common.SplitStrings(pairs, ",") {
+	for _, data := range strings.Split(pairs, ",") {
 		allThePairs = append(allThePairs, NewPairFromString(data))
 	}
 
@@ -85,7 +94,7 @@ func (p *Pairs) UnmarshalJSON(d []byte) error {
 
 // MarshalJSON conforms type to the marshaler interface
 func (p Pairs) MarshalJSON() ([]byte, error) {
-	return common.JSONEncode(p.Join())
+	return json.Marshal(p.Join())
 }
 
 // Upper returns an upper formatted pair list
@@ -132,6 +141,27 @@ func (p Pairs) RemovePairsByFilter(filter Code) Pairs {
 	return pairs
 }
 
+// Remove removes the specified pair from the list of pairs if it exists
+func (p Pairs) Remove(pair Pair) Pairs {
+	var pairs Pairs
+	for x := range p {
+		if p[x].Equal(pair) {
+			continue
+		}
+		pairs = append(pairs, p[x])
+	}
+	return pairs
+}
+
+// Add adds a specified pair to the list of pairs if it doesn't exist
+func (p Pairs) Add(pair Pair) Pairs {
+	if p.Contains(pair, true) {
+		return p
+	}
+	p = append(p, pair)
+	return p
+}
+
 // FindDifferences returns pairs which are new or have been removed
 func (p Pairs) FindDifferences(pairs Pairs) (newPairs, removedPairs Pairs) {
 	for x := range pairs {
@@ -163,3 +193,6 @@ func (p Pairs) GetRandomPair() Pair {
 
 	return p[rand.Intn(pairsLen)]
 }
+
+// Pairs defines a list of pairs
+type Pairs []Pair

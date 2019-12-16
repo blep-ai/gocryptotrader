@@ -13,7 +13,13 @@ import (
 	"strconv"
 	"strings"
 
+<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
+=======
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
+>>>>>>> upstrem/master
 )
 
 // DefaultDirectory defines the main mock directory
@@ -42,9 +48,9 @@ func NewVCRServer(path string) (string, *http.Client, error) {
 
 	contents, err := ioutil.ReadFile(path)
 	if err != nil {
-		pathing := common.SplitStrings(path, "/")
+		pathing := strings.Split(path, "/")
 		dirPathing := pathing[:len(pathing)-1]
-		dir := common.JoinStrings(dirPathing, "/")
+		dir := strings.Join(dirPathing, "/")
 		err = common.CreateDir(dir)
 		if err != nil {
 			return "", nil, err
@@ -55,7 +61,7 @@ func NewVCRServer(path string) (string, *http.Client, error) {
 			return "", nil, jErr
 		}
 
-		err = common.WriteFile(path, data)
+		err = file.Write(path, data)
 		if err != nil {
 			return "", nil, err
 		}
@@ -178,7 +184,7 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 
 				base64data := strings.Join(headerData, "")
 
-				jsonThings, err := common.Base64Decode(base64data)
+				jsonThings, err := crypto.Base64Decode(base64data)
 				if err != nil {
 					log.Fatal("Mock Test Failure - ", err)
 				}

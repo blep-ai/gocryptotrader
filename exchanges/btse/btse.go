@@ -2,6 +2,7 @@ package btse
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
@@ -17,6 +19,13 @@ import (
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
 	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
+=======
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
+>>>>>>> upstrem/master
 )
 
 // BTSE is the overarching type across this package
@@ -44,103 +53,8 @@ const (
 	btsePendingOrders = "pending"
 	btseDeleteOrder   = "deleteOrder"
 	btseFills         = "fills"
+	btseTimeLayout    = "2006-01-02 15:04:04"
 )
-
-// SetDefaults sets the basic defaults for BTSE
-func (b *BTSE) SetDefaults() {
-	b.Name = "BTSE"
-	b.Enabled = false
-	b.Verbose = false
-	b.RESTPollingDelay = 10
-	b.APIWithdrawPermissions = exchange.NoAPIWithdrawalMethods
-	b.RequestCurrencyPairFormat.Delimiter = "-"
-	b.RequestCurrencyPairFormat.Uppercase = true
-	b.ConfigCurrencyPairFormat.Delimiter = "-"
-	b.ConfigCurrencyPairFormat.Uppercase = true
-	b.AssetTypes = []string{ticker.Spot}
-	b.Requester = request.New(b.Name,
-		request.NewRateLimit(time.Second, 0),
-		request.NewRateLimit(time.Second, 0),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	b.APIUrlDefault = btseAPIURL
-	b.APIUrl = b.APIUrlDefault
-	b.SupportsAutoPairUpdating = true
-	b.SupportsRESTTickerBatching = false
-	b.Websocket = wshandler.New()
-	b.Websocket.Functionality = wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported
-	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
-
-// Setup takes in the supplied exchange configuration details and sets params
-func (b *BTSE) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		b.SetEnabled(false)
-	} else {
-		b.Enabled = true
-		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
-		b.SetHTTPClientTimeout(exch.HTTPTimeout)
-		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		b.RESTPollingDelay = exch.RESTPollingDelay
-		b.Verbose = exch.Verbose
-		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		b.BaseCurrencies = exch.BaseCurrencies
-		b.AvailablePairs = exch.AvailablePairs
-		b.EnabledPairs = exch.EnabledPairs
-		err := b.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.Websocket.Setup(b.WsConnect,
-			b.Subscribe,
-			b.Unsubscribe,
-			exch.Name,
-			exch.Websocket,
-			exch.Verbose,
-			btseWebsocket,
-			exch.WebsocketURL,
-			exch.AuthenticatedWebsocketAPISupport)
-		if err != nil {
-			log.Fatal(err)
-		}
-		b.WebsocketConn = &wshandler.WebsocketConnection{
-			ExchangeName:         b.Name,
-			URL:                  b.Websocket.GetWebsocketURL(),
-			ProxyURL:             b.Websocket.GetProxyAddress(),
-			Verbose:              b.Verbose,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
-		b.Websocket.Orderbook.Setup(
-			exch.WebsocketOrderbookBufferLimit,
-			false,
-			false,
-			false,
-			false,
-			exch.Name)
-	}
-}
 
 // GetMarketsSummary stores market summary data
 func (b *BTSE) GetMarketsSummary() (*HighLevelMarketData, error) {
@@ -166,7 +80,6 @@ func (b *BTSE) GetTrades(symbol string) ([]Trade, error) {
 	var t []Trade
 	endpoint := fmt.Sprintf("%s/%s", btseTrades, symbol)
 	return t, b.SendHTTPRequest(http.MethodGet, endpoint, &t)
-
 }
 
 // GetTicker returns the ticker for a specified symbol
@@ -214,7 +127,7 @@ func (b *BTSE) CreateOrder(amount, price float64, side, orderType, symbol, timeI
 		req["symbol"] = symbol
 	}
 	if timeInForce != "" {
-		req["timeInForce"] = timeInForce
+		req["time_in_force"] = timeInForce
 	}
 	if tag != "" {
 		req["tag"] = tag
@@ -286,7 +199,7 @@ func (b *BTSE) GetFills(orderID, symbol, before, after, limit, username string) 
 // SendHTTPRequest sends an HTTP request to the desired endpoint
 func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}) error {
 	return b.SendPayload(method,
-		btseAPIURL+btseAPIPath+endpoint,
+		b.API.Endpoints.URL+btseAPIPath+endpoint,
 		nil,
 		nil,
 		&result,
@@ -299,12 +212,13 @@ func (b *BTSE) SendHTTPRequest(method, endpoint string, result interface{}) erro
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to the desired endpoint
 func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[string]interface{}, result interface{}) error {
-	if !b.AuthenticatedAPISupport {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
+	if !b.AllowAuthenticatedRequest() {
+		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
+			b.Name)
 	}
 	path := btseAPIPath + endpoint
 	headers := make(map[string]string)
-	headers["btse-api"] = b.APIKey
+	headers["btse-api"] = b.API.Credentials.Key
 	nonce := strconv.FormatInt(time.Now().UnixNano()/int64(time.Millisecond), 10)
 	headers["btse-nonce"] = nonce
 	var body io.Reader
@@ -312,29 +226,31 @@ func (b *BTSE) SendAuthenticatedHTTPRequest(method, endpoint string, req map[str
 	var payload []byte
 	if len(req) != 0 {
 		var err error
-		payload, err = common.JSONEncode(req)
+		payload, err = json.Marshal(req)
 		if err != nil {
 			return err
 		}
 		body = bytes.NewBuffer(payload)
-		hmac = common.GetHMAC(
-			common.HashSHA512_384,
+		hmac = crypto.GetHMAC(
+			crypto.HashSHA512_384,
 			[]byte((path + nonce + string(payload))),
-			[]byte(b.APISecret),
+			[]byte(b.API.Credentials.Secret),
 		)
 	} else {
-		hmac = common.GetHMAC(
-			common.HashSHA512_384,
+		hmac = crypto.GetHMAC(
+			crypto.HashSHA512_384,
 			[]byte((path + nonce)),
-			[]byte(b.APISecret),
+			[]byte(b.API.Credentials.Secret),
 		)
 	}
-	headers["btse-sign"] = common.HexEncodeToString(hmac)
+	headers["btse-sign"] = crypto.HexEncodeToString(hmac)
 	if b.Verbose {
-		log.Debugf("Sending %s request to URL %s with params %s\n", method, path, string(payload))
+		log.Debugf(log.ExchangeSys,
+			"%s Sending %s request to URL %s with params %s\n",
+			b.Name, method, path, string(payload))
 	}
 	return b.SendPayload(method,
-		btseAPIURL+path,
+		b.API.Endpoints.URL+path,
 		headers,
 		body,
 		&result,
@@ -416,7 +332,6 @@ func calculateTradingFee(isMaker bool) float64 {
 	return fee
 }
 
-func parseOrderTime(timeStr string) time.Time {
-	t, _ := time.Parse("2006-01-02 15:04:04", timeStr)
-	return t
+func parseOrderTime(timeStr string) (time.Time, error) {
+	return time.Parse(btseTimeLayout, timeStr)
 }

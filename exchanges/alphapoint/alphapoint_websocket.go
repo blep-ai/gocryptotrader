@@ -1,11 +1,16 @@
 package alphapoint
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gorilla/websocket"
+<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
 	log "github.com/idoall/gocryptotrader/logger"
+=======
+	log "github.com/thrasher-corp/gocryptotrader/logger"
+>>>>>>> upstrem/master
 )
 
 const (
@@ -17,28 +22,29 @@ func (a *Alphapoint) WebsocketClient() {
 	for a.Enabled {
 		var dialer websocket.Dialer
 		var err error
-		a.WebsocketConn, _, err = dialer.Dial(a.WebsocketURL, http.Header{})
+		a.WebsocketConn, _, err = dialer.Dial(a.API.Endpoints.WebsocketURL, http.Header{})
 
 		if err != nil {
-			log.Errorf("%s Unable to connect to Websocket. Error: %s\n", a.Name, err)
+			log.Errorf(log.ExchangeSys, "%s Unable to connect to Websocket. Error: %s\n", a.Name, err)
 			continue
 		}
 
 		if a.Verbose {
-			log.Debugf("%s Connected to Websocket.\n", a.Name)
+			log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", a.Name)
 		}
 
 		err = a.WebsocketConn.WriteMessage(websocket.TextMessage, []byte(`{"messageType": "logon"}`))
 
 		if err != nil {
-			log.Error(err)
+			log.Error(log.ExchangeSys, err)
 			return
 		}
 
 		for a.Enabled {
 			msgType, resp, err := a.WebsocketConn.ReadMessage()
 			if err != nil {
-				log.Error(err)
+				a.Websocket.ReadMessageErrors <- err
+				log.Error(log.ExchangeSys, err)
 				break
 			}
 
@@ -48,23 +54,23 @@ func (a *Alphapoint) WebsocketClient() {
 				}
 
 				msgType := MsgType{}
-				err := common.JSONDecode(resp, &msgType)
+				err := json.Unmarshal(resp, &msgType)
 				if err != nil {
-					log.Error(err)
+					log.Error(log.ExchangeSys, err)
 					continue
 				}
 
 				if msgType.MessageType == "Ticker" {
 					ticker := WebsocketTicker{}
-					err = common.JSONDecode(resp, &ticker)
+					err = json.Unmarshal(resp, &ticker)
 					if err != nil {
-						log.Error(err)
+						log.Error(log.ExchangeSys, err)
 						continue
 					}
 				}
 			}
 		}
 		a.WebsocketConn.Close()
-		log.Debugf("%s Websocket client disconnected.", a.Name)
+		log.Debugf(log.ExchangeSys, "%s Websocket client disconnected.", a.Name)
 	}
 }

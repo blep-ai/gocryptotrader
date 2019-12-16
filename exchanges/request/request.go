@@ -2,6 +2,7 @@ package request
 
 import (
 	"compress/gzip"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,9 +11,10 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"sync"
+	"strings"
 	"time"
 
+<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/exchanges/mock"
 	"github.com/idoall/gocryptotrader/exchanges/nonce"
@@ -74,13 +76,22 @@ type Job struct {
 	Record        bool
 }
 
+=======
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/timedmutex"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
+)
+
+>>>>>>> upstrem/master
 // NewRateLimit creates a new RateLimit
 func NewRateLimit(d time.Duration, rate int) *RateLimit {
 	return &RateLimit{Duration: d, Rate: rate}
 }
 
-// ToString returns the rate limiter in string notation
-func (r *RateLimit) ToString() string {
+// String returns the rate limiter in string notation
+func (r *RateLimit) String() string {
 	return fmt.Sprintf("Rate limiter set to %d requests per %v", r.Rate, r.Duration)
 }
 
@@ -150,6 +161,10 @@ func (r *Requester) IsRateLimited(auth bool) bool {
 
 // RequiresRateLimiter returns whether or not the request Requester requires a rate limiter
 func (r *Requester) RequiresRateLimiter() bool {
+	if DisableRateLimiter {
+		return false
+	}
+
 	if r.AuthLimit.GetRate() != 0 || r.UnauthLimit.GetRate() != 0 {
 		return true
 	}
@@ -223,9 +238,9 @@ func New(name string, authLimit, unauthLimit *RateLimit, httpRequester *http.Cli
 		UnauthLimit:          unauthLimit,
 		AuthLimit:            authLimit,
 		Name:                 name,
-		Jobs:                 make(chan Job, maxRequestJobs),
-		disengage:            make(chan struct{}, 1),
-		timeoutRetryAttempts: defaultTimeoutRetryAttempts,
+		Jobs:                 make(chan Job, MaxRequestJobs),
+		timeoutRetryAttempts: TimeoutRetryAttempts,
+		timedLock:            timedmutex.NewTimedMutex(DefaultMutexLockTimeout),
 	}
 }
 
@@ -270,16 +285,19 @@ func (r *Requester) checkRequest(method, path string, body io.Reader, headers ma
 // DoRequest performs a HTTP/HTTPS request with the supplied params
 func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, result interface{}, authRequest, verbose, httpDebug, httpRecord bool) error {
 	if verbose {
-		log.Debugf("%s exchange request path: %s requires rate limiter: %v",
+		log.Debugf(log.Global,
+			"%s exchange request path: %s requires rate limiter: %v",
 			r.Name,
 			path,
 			r.RequiresRateLimiter())
 
 		for k, d := range req.Header {
-			log.Debugf("%s exchange request header [%s]: %s", r.Name, k, d)
+			log.Debugf(log.Global, "%s exchange request header [%s]: %s", r.Name, k, d)
 		}
-		log.Debugf("%s exchange request type: %s", r.Name, req.Method)
-		log.Debugf("%s exchange request body: %v", r.Name, body)
+		log.Debugf(log.Global,
+			"%s exchange request type: %s", r.Name, req.Method)
+		log.Debugf(log.Global,
+			"%s exchange request body: %v", r.Name, body)
 	}
 
 	var timeoutError error
@@ -287,11 +305,19 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 		resp, err := r.HTTPClient.Do(req)
 		if err != nil {
 			if timeoutErr, ok := err.(net.Error); ok && timeoutErr.Timeout() {
+<<<<<<< HEAD
 				// if verbose {
 				log.Errorf("%s request has timed-out retrying request, count %d",
 					r.Name,
 					i)
 				// }
+=======
+				if verbose {
+					log.Errorf(log.ExchangeSys, "%s request has timed-out retrying request, count %d",
+						r.Name,
+						i)
+				}
+>>>>>>> upstrem/master
 				timeoutError = err
 				continue
 			}
@@ -322,12 +348,17 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 
 		default:
 			switch {
-			case common.StringContains(resp.Header.Get("Content-Type"), "application/json"):
+			case strings.Contains(resp.Header.Get("Content-Type"), "application/json"):
 				reader = resp.Body
 
 			default:
-				log.Warnf("%s request response content type differs from JSON; received %v [path: %s]",
-					r.Name, resp.Header.Get("Content-Type"), path)
+				if verbose {
+					log.Warnf(log.ExchangeSys,
+						"%s request response content type differs from JSON; received %v [path: %s]\n",
+						r.Name,
+						resp.Header.Get("Content-Type"),
+						path)
+				}
 				reader = resp.Body
 			}
 		}
@@ -358,22 +389,22 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 		if httpDebug {
 			dump, err := httputil.DumpResponse(resp, false)
 			if err != nil {
-				log.Errorf("DumpResponse invalid response: %v:", err)
+				log.Errorf(log.Global, "DumpResponse invalid response: %v:", err)
 			}
-			log.Debugf("DumpResponse Headers (%v):\n%s", path, dump)
-			log.Debugf("DumpResponse Body (%v):\n %s", path, string(contents))
+			log.Debugf(log.Global, "DumpResponse Headers (%v):\n%s", path, dump)
+			log.Debugf(log.Global, "DumpResponse Body (%v):\n %s", path, string(contents))
 		}
 
 		resp.Body.Close()
 		if verbose {
-			log.Debugf("HTTP status: %s, Code: %v", resp.Status, resp.StatusCode)
+			log.Debugf(log.ExchangeSys, "HTTP status: %s, Code: %v", resp.Status, resp.StatusCode)
 			if !httpDebug {
-				log.Debugf("%s exchange raw response: %s", r.Name, string(contents))
+				log.Debugf(log.ExchangeSys, "%s exchange raw response: %s", r.Name, string(contents))
 			}
 		}
 
 		if result != nil {
-			return common.JSONDecode(contents, result)
+			return json.Unmarshal(contents, result)
 		}
 
 		return nil
@@ -397,7 +428,7 @@ func (r *Requester) worker() {
 				limit := r.GetRateLimit(x.AuthRequest)
 				diff := limit.GetDuration() - time.Since(r.Cycle)
 				if x.Verbose {
-					log.Debugf("%s request. Rate limited! Sleeping for %v", r.Name, diff)
+					log.Debugf(log.ExchangeSys, "%s request. Rate limited! Sleeping for %v", r.Name, diff)
 				}
 				time.Sleep(diff)
 
@@ -409,7 +440,7 @@ func (r *Requester) worker() {
 					r.IncrementRequests(x.AuthRequest)
 
 					if x.Verbose {
-						log.Debugf("%s request. No longer rate limited! Doing request", r.Name)
+						log.Debugf(log.ExchangeSys, "%s request. No longer rate limited! Doing request", r.Name)
 					}
 
 					err := r.DoRequest(x.Request, x.Path, x.Body, x.Result, x.AuthRequest, x.Verbose, x.HTTPDebugging, x.Record)
@@ -427,45 +458,47 @@ func (r *Requester) worker() {
 // SendPayload handles sending HTTP/HTTPS requests
 func (r *Requester) SendPayload(method, path string, headers map[string]string, body io.Reader, result interface{}, authRequest, nonceEnabled, verbose, httpDebugging, record bool) error {
 	if !nonceEnabled {
-		r.lock()
+		r.timedLock.LockForDuration()
 	}
 
 	if r == nil || r.Name == "" {
-		r.unlock()
+		r.timedLock.UnlockIfLocked()
 		return errors.New("not initiliased, SetDefaults() called before making request?")
 	}
 
 	if !IsValidMethod(method) {
-		r.unlock()
+		r.timedLock.UnlockIfLocked()
 		return fmt.Errorf("incorrect method supplied %s: supported %s", method, supportedMethods)
 	}
 
 	if path == "" {
-		r.unlock()
+		r.timedLock.UnlockIfLocked()
 		return errors.New("invalid path")
 	}
 
 	req, err := r.checkRequest(method, path, body, headers)
 	if err != nil {
-		r.unlock()
+		r.timedLock.UnlockIfLocked()
 		return err
 	}
 
 	if httpDebugging {
 		dump, err := httputil.DumpRequestOut(req, true)
 		if err != nil {
-			log.Errorf("DumpRequest invalid response %v:", err)
+			log.Errorf(log.Global,
+				"DumpRequest invalid response %v:", err)
 		}
-		log.Debugf("DumpRequest:\n%s", dump)
+		log.Debugf(log.Global,
+			"DumpRequest:\n%s", dump)
 	}
 
 	if !r.RequiresRateLimiter() {
-		r.unlock()
+		r.timedLock.UnlockIfLocked()
 		return r.DoRequest(req, path, body, result, authRequest, verbose, httpDebugging, record)
 	}
 
-	if len(r.Jobs) == maxRequestJobs {
-		r.unlock()
+	if len(r.Jobs) == MaxRequestJobs {
+		r.timedLock.UnlockIfLocked()
 		return errors.New("max request jobs reached")
 	}
 
@@ -494,18 +527,18 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 	}
 
 	if verbose {
-		log.Debugf("%s request. Attaching new job.", r.Name)
+		log.Debugf(log.ExchangeSys, "%s request. Attaching new job.", r.Name)
 	}
 	r.Jobs <- newJob
-	r.unlock()
+	r.timedLock.UnlockIfLocked()
 
 	if verbose {
-		log.Debugf("%s request. Waiting for job to complete.", r.Name)
+		log.Debugf(log.ExchangeSys, "%s request. Waiting for job to complete.", r.Name)
 	}
 	resp := <-newJob.JobResult
 
 	if verbose {
-		log.Debugf("%s request. Job complete.", r.Name)
+		log.Debugf(log.ExchangeSys, "%s request. Job complete.", r.Name)
 	}
 
 	return resp.Error
@@ -514,7 +547,7 @@ func (r *Requester) SendPayload(method, path string, headers map[string]string, 
 // GetNonce returns a nonce for requests. This locks and enforces concurrent
 // nonce FIFO on the buffered job channel
 func (r *Requester) GetNonce(isNano bool) nonce.Value {
-	r.lock()
+	r.timedLock.LockForDuration()
 	if r.Nonce.Get() == 0 {
 		if isNano {
 			r.Nonce.Set(time.Now().UnixNano())
@@ -530,7 +563,7 @@ func (r *Requester) GetNonce(isNano bool) nonce.Value {
 // GetNonceMilli returns a nonce for requests. This locks and enforces concurrent
 // nonce FIFO on the buffered job channel this is for millisecond
 func (r *Requester) GetNonceMilli() nonce.Value {
-	r.lock()
+	r.timedLock.LockForDuration()
 	if r.Nonce.Get() == 0 {
 		r.Nonce.Set(time.Now().UnixNano() / int64(time.Millisecond))
 		return r.Nonce.Get()
@@ -550,34 +583,4 @@ func (r *Requester) SetProxy(p *url.URL) error {
 		TLSHandshakeTimeout: proxyTLSTimeout,
 	}
 	return nil
-}
-
-// lock locks and sets up an issue timer, if something errors out of scope it
-// automatically unlocks
-func (r *Requester) lock() {
-	if r.disengage == nil {
-		r.disengage = make(chan struct{}, 1)
-	}
-	var wg sync.WaitGroup
-	r.fifoLock.Lock()
-	wg.Add(1)
-	go func() {
-		timer := time.NewTimer(50 * time.Millisecond)
-		wg.Done()
-		select {
-		case <-timer.C:
-			log.Errorf("Unlocking due to possible error for %s", r.Name)
-			r.fifoLock.Unlock()
-
-		case <-r.disengage:
-			return
-		}
-	}()
-	wg.Wait()
-}
-
-// unlock unlocks mtx and shuts down a timer
-func (r *Requester) unlock() {
-	r.disengage <- struct{}{}
-	r.fifoLock.Unlock()
 }

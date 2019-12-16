@@ -1,16 +1,20 @@
 package config
 
 import (
+	"io/ioutil"
 	"testing"
+<<<<<<< HEAD
 
 	"github.com/idoall/gocryptotrader/common"
+=======
+>>>>>>> upstrem/master
 )
 
 func TestPromptForConfigEncryption(t *testing.T) {
 	t.Parallel()
 
-	if Cfg.PromptForConfigEncryption() {
-		t.Error("Test failed. PromptForConfigEncryption return incorrect bool")
+	if Cfg.PromptForConfigEncryption("", true) {
+		t.Error("PromptForConfigEncryption return incorrect bool")
 	}
 }
 
@@ -19,25 +23,25 @@ func TestPromptForConfigKey(t *testing.T) {
 
 	byteyBite, err := PromptForConfigKey(true)
 	if err == nil && len(byteyBite) > 1 {
-		t.Errorf("Test failed. PromptForConfigKey: %s", err)
+		t.Errorf("PromptForConfigKey: %s", err)
 	}
 
 	_, err = PromptForConfigKey(false)
 	if err == nil {
-		t.Fatal(err)
+		t.Error("Expected error")
 	}
 }
 
 func TestEncryptConfigFile(t *testing.T) {
 	_, err := EncryptConfigFile([]byte("test"), nil)
 	if err == nil {
-		t.Fatal("Test failed. Expected different result")
+		t.Fatal("Expected error")
 	}
 
 	sessionDK = []byte("a")
 	_, err = EncryptConfigFile([]byte("test"), nil)
 	if err == nil {
-		t.Fatal("Test failed. Expected different result")
+		t.Fatal("Expected error")
 	}
 
 	sessionDK, err = makeNewSessionDK([]byte("asdf"))
@@ -61,17 +65,17 @@ func TestDecryptConfigFile(t *testing.T) {
 
 	_, err = DecryptConfigFile(result, nil)
 	if err == nil {
-		t.Fatal("Test failed. Expected different result")
+		t.Fatal("Expected error")
 	}
 
 	_, err = DecryptConfigFile([]byte("test"), nil)
 	if err == nil {
-		t.Fatal("Test failed. Expected different result")
+		t.Fatal("Expected error")
 	}
 
 	_, err = DecryptConfigFile([]byte("test"), []byte("AAAAAAAAAAAAAAAA"))
 	if err == nil {
-		t.Fatalf("Test failed. Expected %s", errAESBlockSize)
+		t.Fatalf("Expected %s", errAESBlockSize)
 	}
 
 	result, err = EncryptConfigFile([]byte("test"), []byte("key"))
@@ -87,14 +91,14 @@ func TestDecryptConfigFile(t *testing.T) {
 
 func TestConfirmConfigJSON(t *testing.T) {
 	var result interface{}
-	testConfirmJSON, err := common.ReadFile(ConfigTestFile)
+	testConfirmJSON, err := ioutil.ReadFile(TestFile)
 	if err != nil {
-		t.Errorf("Test failed. testConfirmJSON: %s", err)
+		t.Errorf("testConfirmJSON: %s", err)
 	}
 
 	err = ConfirmConfigJSON(testConfirmJSON, &result)
 	if err != nil || result == nil {
-		t.Errorf("Test failed. testConfirmJSON: %s", err)
+		t.Errorf("testConfirmJSON: %s", err)
 	}
 }
 
@@ -103,7 +107,7 @@ func TestConfirmECS(t *testing.T) {
 
 	ECStest := []byte(EncryptConfirmString)
 	if !ConfirmECS(ECStest) {
-		t.Errorf("Test failed. TestConfirmECS: Error finding ECS.")
+		t.Errorf("TestConfirmECS: Error finding ECS.")
 	}
 }
 
@@ -114,7 +118,7 @@ func TestRemoveECS(t *testing.T) {
 	isremoved := RemoveECS(ECStest)
 
 	if string(isremoved) != "" {
-		t.Errorf("Test failed. TestConfirmECS: Error ECS not deleted.")
+		t.Errorf("TestConfirmECS: Error ECS not deleted.")
 	}
 }
 
@@ -123,6 +127,6 @@ func TestMakeNewSessionDK(t *testing.T) {
 
 	_, err := makeNewSessionDK(nil)
 	if err == nil {
-		t.Fatal("Test failed. makeNewSessionDK passed with nil key")
+		t.Fatal("makeNewSessionDK passed with nil key")
 	}
 }

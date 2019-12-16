@@ -4,8 +4,13 @@
 
 
 [![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
+<<<<<<< HEAD
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/idoall/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/idoall/gocryptotrader?status.svg)](https://godoc.org/github.com/idoall/gocryptotrader/currency/forexprovider/fixer)
+=======
+[![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/currency/forexprovider/fixer.io)
+>>>>>>> upstrem/master
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/idoall/gocryptotrader)](https://goreportcard.com/report/github.com/idoall/gocryptotrader)
 
@@ -29,15 +34,20 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + Individual package example below:
 ```go
 import (
+<<<<<<< HEAD
 "github.com/idoall/gocryptotrader/currency/forexprovider/base"
 "github.com/idoall/gocryptotrader/currency/forexprovider/fixer.io"
+=======
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/fixer.io"
+>>>>>>> upstrem/master
 )
 
 c := fixer.Fixer{}
 
 // Define configuration
 newSettings := base.Settings{
-  Name: "Fixer",
+  	Name: "Fixer",
 	Enabled: true,
 	Verbose: false,
 	RESTPollingDelay: time.Duration,
@@ -72,4 +82,3 @@ When submitting a PR, please abide by our coding guidelines:
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 
 ***1F5zVDgNjorJ51oGebSvNCrSAHpwGkUdDB***
-
