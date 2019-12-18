@@ -3,7 +3,7 @@ package okgroup
 import (
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/idoall/gocryptotrader/currency"
 )
 
 // Order types

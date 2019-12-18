@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/core"
-	"github.com/thrasher-corp/gocryptotrader/gctrpc/auth"
+	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/core"
+	"github.com/idoall/gocryptotrader/gctrpc/auth"
 	"github.com/urfave/cli"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

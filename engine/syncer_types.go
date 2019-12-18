@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/idoall/gocryptotrader/currency"
+	"github.com/idoall/gocryptotrader/exchanges/asset"
 )
 
 // CurrencyPairSyncerConfig stores the currency pair config

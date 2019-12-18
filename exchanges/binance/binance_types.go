@@ -1,7 +1,5 @@
 package binance
 
-// Response struct
-
 import (
 	"encoding/json"
 
@@ -55,11 +53,9 @@ type ExchangeInfo struct {
 	} `json:"symbols"`
 }
 
-//------------------
-
 // OrderBookDataRequestParams represents Klines request data.
 type OrderBookDataRequestParams struct {
-	Symbol string `json:"symbol"` //必填项，交易对:LTCBTC,BTCUSDT
+	Symbol string `json:"symbol"` // Required field; example LTCBTC,BTCUSDT
 	Limit  int    `json:"limit"`  // Default 100; max 1000. Valid limits:[5, 10, 20, 50, 100, 500, 1000]
 }
 
@@ -83,19 +79,8 @@ type OrderBook struct {
 	LastUpdateID int64
 	Code         int
 	Msg          string
-<<<<<<< HEAD
-	Bids         []struct { //买方
-		Price    float64 //价格
-		Quantity float64 // 数量
-	}
-	Asks []struct { //卖方
-		Price    float64
-		Quantity float64
-	}
-=======
 	Bids         []OrderbookItem
 	Asks         []OrderbookItem
->>>>>>> upstrem/master
 }
 
 // DepthUpdateParams is used as an embedded type for WebsocketDepthStream
@@ -118,7 +103,7 @@ type WebsocketDepthStream struct {
 
 // RecentTradeRequestParams represents Klines request data.
 type RecentTradeRequestParams struct {
-	Symbol string `json:"symbol"` //必填项，交易对:LTCBTC,BTCUSDT
+	Symbol string `json:"symbol"` // Required field. example LTCBTC, BTCUSDT
 	Limit  int    `json:"limit"`  // Default 500; max 500.
 }
 
@@ -292,17 +277,8 @@ type BestPrice struct {
 
 // NewOrderRequest request type
 type NewOrderRequest struct {
-	// Symbol 交易对，必填项
+	// Symbol (currency pair to trade)
 	Symbol string
-<<<<<<< HEAD
-	// Side 交易方式，买或卖，必填写项
-	Side BinanceRequestParamsSideType
-	// TradeType 交易类型，市价或限价等
-	TradeType BinanceRequestParamsOrderType
-	// TimeInForce 不知道有毛用
-	TimeInForce BinanceRequestParamsTimeForceType
-	// Quantity 数量
-=======
 	// Side Buy or Sell
 	Side string
 	// TradeType (market or limit order)
@@ -311,7 +287,6 @@ type NewOrderRequest struct {
 	// Examples are (Good Till Cancel (GTC), Immediate or Cancel (IOC) and Fill Or Kill (FOK))
 	TimeInForce RequestParamsTimeForceType
 	// Quantity
->>>>>>> upstrem/master
 	Quantity         float64
 	Price            float64
 	NewClientOrderID string
@@ -335,13 +310,12 @@ type NewOrderResponse struct {
 	TimeInForce     string  `json:"timeInForce"`
 	Type            string  `json:"type"`
 	Side            string  `json:"side"`
-	// 用系统自带的JSON有BUG，无法解析出CommissionAsset字段，会提示:json: invalid use of ,string struct tag, trying to unmarshal "BTC" into string
-	// Fills           []struct {
-	// 	Price           float64 `json:"price,string"`
-	// 	Qty             float64 `json:"qty,string"`
-	// 	Commission      float64 `json:"commission,string"`
-	// 	CommissionAsset string  `json:"commissionAsset,string"`
-	// } `json:"fills"`
+	Fills           []struct {
+		Price           float64 `json:"price,string"`
+		Qty             float64 `json:"qty,string"`
+		Commission      float64 `json:"commission,string"`
+		CommissionAsset string  `json:"commissionAsset"`
+	} `json:"fills"`
 }
 
 // CancelOrderResponse is the return structured response from the exchange
@@ -354,23 +328,22 @@ type CancelOrderResponse struct {
 
 // QueryOrderData holds query order data
 type QueryOrderData struct {
-	Code                int     `json:"code"`
-	Msg                 string  `json:"msg"`
-	Symbol              string  `json:"symbol"`
-	OrderID             int64   `json:"orderId"`
-	ClientOrderID       string  `json:"clientOrderId"`
-	Price               float64 `json:"price,string"`
-	OrigQty             float64 `json:"origQty,string"`
-	ExecutedQty         float64 `json:"executedQty,string"`         //成交的数量
-	CummulativeQuoteQty float64 `json:"cummulativeQuoteQty,string"` //成交金额
-	Status              string  `json:"status"`
-	TimeInForce         string  `json:"timeInForce"`
-	Type                string  `json:"type"`
-	Side                string  `json:"side"`
-	StopPrice           float64 `json:"stopPrice,string"`
-	IcebergQty          float64 `json:"icebergQty,string"`
-	Time                float64 `json:"time"`
-	IsWorking           bool    `json:"isWorking"`
+	Code          int     `json:"code"`
+	Msg           string  `json:"msg"`
+	Symbol        string  `json:"symbol"`
+	OrderID       int64   `json:"orderId"`
+	ClientOrderID string  `json:"clientOrderId"`
+	Price         float64 `json:"price,string"`
+	OrigQty       float64 `json:"origQty,string"`
+	ExecutedQty   float64 `json:"executedQty,string"`
+	Status        string  `json:"status"`
+	TimeInForce   string  `json:"timeInForce"`
+	Type          string  `json:"type"`
+	Side          string  `json:"side"`
+	StopPrice     float64 `json:"stopPrice,string"`
+	IcebergQty    float64 `json:"icebergQty,string"`
+	Time          float64 `json:"time"`
+	IsWorking     bool    `json:"isWorking"`
 }
 
 // Balance holds query order data
@@ -393,68 +366,50 @@ type Account struct {
 	Balances         []Balance `json:"balances"`
 }
 
-<<<<<<< HEAD
-// BinanceRequestParamsSideType 交易类型
-type BinanceRequestParamsSideType string
-
-var (
-	// BinanceRequestParamsSideBuy 买
-	BinanceRequestParamsSideBuy = BinanceRequestParamsSideType("BUY")
-
-	// BinanceRequestParamsSideSell 卖
-	BinanceRequestParamsSideSell = BinanceRequestParamsSideType("SELL")
-)
-
-// BinanceRequestParamsTimeForceType Time in force
-type BinanceRequestParamsTimeForceType string
-=======
 // RequestParamsTimeForceType Time in force
 type RequestParamsTimeForceType string
->>>>>>> upstrem/master
 
 var (
 	// BinanceRequestParamsTimeGTC GTC
-	BinanceRequestParamsTimeGTC = BinanceRequestParamsTimeForceType("GTC")
+	BinanceRequestParamsTimeGTC = RequestParamsTimeForceType("GTC")
 
 	// BinanceRequestParamsTimeIOC IOC
-	BinanceRequestParamsTimeIOC = BinanceRequestParamsTimeForceType("IOC")
+	BinanceRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
 
 	// BinanceRequestParamsTimeFOK FOK
-	BinanceRequestParamsTimeFOK = BinanceRequestParamsTimeForceType("FOK")
+	BinanceRequestParamsTimeFOK = RequestParamsTimeForceType("FOK")
 )
 
-// BinanceRequestParamsOrderType 交易类型
-type BinanceRequestParamsOrderType string
+// RequestParamsOrderType trade order type
+type RequestParamsOrderType string
 
 var (
-	// BinanceRequestParamsOrderLimit 限价
-	BinanceRequestParamsOrderLimit = BinanceRequestParamsOrderType("LIMIT")
+	// BinanceRequestParamsOrderLimit Limit order
+	BinanceRequestParamsOrderLimit = RequestParamsOrderType("LIMIT")
 
-	// BinanceRequestParamsOrderMarket 市场价
-	BinanceRequestParamsOrderMarket = BinanceRequestParamsOrderType("MARKET")
+	// BinanceRequestParamsOrderMarket Market order
+	BinanceRequestParamsOrderMarket = RequestParamsOrderType("MARKET")
 
 	// BinanceRequestParamsOrderStopLoss STOP_LOSS
-	BinanceRequestParamsOrderStopLoss = BinanceRequestParamsOrderType("STOP_LOSS")
+	BinanceRequestParamsOrderStopLoss = RequestParamsOrderType("STOP_LOSS")
 
 	// BinanceRequestParamsOrderStopLossLimit STOP_LOSS_LIMIT
-	BinanceRequestParamsOrderStopLossLimit = BinanceRequestParamsOrderType("STOP_LOSS_LIMIT")
+	BinanceRequestParamsOrderStopLossLimit = RequestParamsOrderType("STOP_LOSS_LIMIT")
 
 	// BinanceRequestParamsOrderTakeProfit TAKE_PROFIT
-	BinanceRequestParamsOrderTakeProfit = BinanceRequestParamsOrderType("TAKE_PROFIT")
+	BinanceRequestParamsOrderTakeProfit = RequestParamsOrderType("TAKE_PROFIT")
 
 	// BinanceRequestParamsOrderTakeProfitLimit TAKE_PROFIT_LIMIT
-	BinanceRequestParamsOrderTakeProfitLimit = BinanceRequestParamsOrderType("TAKE_PROFIT_LIMIT")
+	BinanceRequestParamsOrderTakeProfitLimit = RequestParamsOrderType("TAKE_PROFIT_LIMIT")
 
 	// BinanceRequestParamsOrderLimitMarker LIMIT_MAKER
-	BinanceRequestParamsOrderLimitMarker = BinanceRequestParamsOrderType("LIMIT_MAKER")
+	BinanceRequestParamsOrderLimitMarker = RequestParamsOrderType("LIMIT_MAKER")
 )
-
-//------------------
 
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
-	Symbol    string       //必填项，交易对:LTCBTC,BTCUSDT
-	Interval  TimeInterval //查询时间段
+	Symbol    string       // Required field; example LTCBTC, BTCUSDT
+	Interval  TimeInterval // Time interval period
 	Limit     int          // Default 500; max 500.
 	StartTime int64
 	EndTime   int64

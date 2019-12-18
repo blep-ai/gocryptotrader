@@ -3,7 +3,7 @@ FROM golang:1.12 as build
 WORKDIR /go/src/github.com/idoall/gocryptotrader
 =======
 FROM golang:1.13 as build
-WORKDIR /go/src/github.com/thrasher-corp/gocryptotrader
+WORKDIR /go/src/github.com/idoall/gocryptotrader
 >>>>>>> upstrem/master
 COPY . .
 RUN GO111MODULE=on go mod vendor
@@ -23,7 +23,7 @@ EXPOSE 9050
 CMD ["/app/gocryptotrader"]
 =======
 COPY --from=build /go/bin/gctcli /app/
-COPY --from=build /go/src/github.com/thrasher-corp/gocryptotrader/config.json /app/
+COPY --from=build /go/src/github.com/idoall/gocryptotrader/config.json /app/
 EXPOSE 9050-9053
 ENTRYPOINT [ "/app/gocryptotrader" ]
 >>>>>>> upstrem/master

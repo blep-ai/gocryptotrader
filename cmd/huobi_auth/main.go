@@ -13,11 +13,7 @@ import (
 	"io/ioutil"
 	"log"
 
-<<<<<<< HEAD:tools/huobi_auth/main.go
-	"github.com/idoall/gocryptotrader/common"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common/file"
->>>>>>> upstrem/master:cmd/huobi_auth/main.go
+	"github.com/idoall/gocryptotrader/common/file"
 )
 
 func encodePEM(privKey *ecdsa.PrivateKey, pubKey bool) ([]byte, error) {

@@ -8,19 +8,11 @@ import (
 	"path/filepath"
 	"time"
 
-<<<<<<< HEAD
-	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/common/file"
 	"github.com/idoall/gocryptotrader/currency/coinmarketcap"
 	"github.com/idoall/gocryptotrader/currency/forexprovider"
 	"github.com/idoall/gocryptotrader/currency/forexprovider/base"
 	log "github.com/idoall/gocryptotrader/logger"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common/file"
-	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
-	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
-	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
->>>>>>> upstrem/master
 )
 
 func init() {

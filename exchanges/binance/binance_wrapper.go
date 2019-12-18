@@ -7,29 +7,19 @@ import (
 	"sync"
 	"time"
 
-<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/exchanges/asset"
+	"github.com/idoall/gocryptotrader/exchanges/order"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
+	"github.com/idoall/gocryptotrader/exchanges/protocol"
+	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
 	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/idoall/gocryptotrader/exchanges/withdraw"
 	log "github.com/idoall/gocryptotrader/logger"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
->>>>>>> upstrem/master
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -411,28 +401,16 @@ func (b *Binance) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 		return submitOrderResponse, err
 	}
 
-<<<<<<< HEAD
-	var sideType BinanceRequestParamsSideType
-	if side == exchange.BuyOrderSide {
-		sideType = BinanceRequestParamsSideBuy
-=======
 	var sideType string
 	if s.OrderSide == order.Buy {
 		sideType = order.Buy.String()
->>>>>>> upstrem/master
 	} else {
 		sideType = order.Sell.String()
 	}
 
-<<<<<<< HEAD
-	var requestParamsOrderType BinanceRequestParamsOrderType
-	switch orderType {
-	case exchange.MarketOrderType:
-=======
 	var requestParamsOrderType RequestParamsOrderType
 	switch s.OrderType {
 	case order.Market:
->>>>>>> upstrem/master
 		requestParamsOrderType = BinanceRequestParamsOrderMarket
 	case order.Limit:
 		requestParamsOrderType = BinanceRequestParamsOrderLimit
@@ -600,20 +578,12 @@ func (b *Binance) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, 
 		return nil, errors.New("at least one currency is required to fetch order history")
 	}
 
-<<<<<<< HEAD
-	var orders []exchange.OrderDetail
-	for _, c := range getOrdersRequest.Currencies {
-
-		resp, err := b.AllOrders(c.Format(b.RequestCurrencyPairFormat.Delimiter, b.RequestCurrencyPairFormat.Uppercase).String(), "", "1000")
-		// resp, err := b.AllOrders(exchange.FormatExchangeCurrency(b.Name, c).String(), "", "1000")
-=======
 	var orders []order.Detail
 	for x := range req.Currencies {
 		resp, err := b.AllOrders(b.FormatExchangeCurrency(req.Currencies[x],
 			asset.Spot).String(),
 			"",
 			"1000")
->>>>>>> upstrem/master
 		if err != nil {
 			return nil, err
 		}

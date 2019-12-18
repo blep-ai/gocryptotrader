@@ -1,12 +1,12 @@
 # GoCryptoTrader Unified API
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="https://github.com/idoall/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
-[![Build Status](https://travis-ci.com/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.com/thrasher-corp/gocryptotrader)
-[![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader)
-[![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
-[![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
+[![Build Status](https://travis-ci.com/idoall/gocryptotrader.svg?branch=master)](https://travis-ci.com/idoall/gocryptotrader)
+[![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/idoall/gocryptotrader/blob/master/LICENSE)
+[![GoDoc](https://godoc.org/github.com/idoall/gocryptotrader?status.svg)](https://godoc.org/github.com/idoall/gocryptotrader)
+[![Coverage Status](http://codecov.io/github/idoall/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/idoall/gocryptotrader?branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/idoall/gocryptotrader)](https://goreportcard.com/report/github.com/idoall/gocryptotrader)
 
 A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 
@@ -22,7 +22,7 @@ GoCryptoTrader supports a unified API for dealing with exchanges. Each exchange
 has its own wrapper file which maps the exchanges own RESTful endpoints into a
 standardised way for bot and standalone application usage.
 
-A full breakdown of all the supported wrapper funcs can be found [here.](https://github.com/thrasher-corp/gocryptotrader/blob/engine/exchanges/interfaces.go#L16)
+A full breakdown of all the supported wrapper funcs can be found [here.](https://github.com/idoall/gocryptotrader/blob/engine/exchanges/interfaces.go#L16)
 Please note that these change on a regular basis as GoCryptoTrader is undergoing
 rapid development.
 

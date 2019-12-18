@@ -3,10 +3,10 @@
 <img src="https://github.com/idoall/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
-[![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
+[![Build Status](https://travis-ci.org/idoall/gocryptotrader.svg?branch=master)](https://travis-ci.org/idoall/gocryptotrader)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/idoall/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/idoall/gocryptotrader?status.svg)](https://godoc.org/github.com/idoall/gocryptotrader/exchanges/lbank)
-[![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
+[![Coverage Status](http://codecov.io/github/idoall/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/idoall/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/idoall/gocryptotrader)](https://goreportcard.com/report/github.com/idoall/gocryptotrader)
 
 
@@ -26,7 +26,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ### How to enable
 
-+ [Enable via configuration](https://githul.com/thrasher-corp/gocryptotrader/tree/master/config#enable-exchange-via-config-example)
++ [Enable via configuration](https://githul.com/idoall/gocryptotrader/tree/master/config#enable-exchange-via-config-example)
 
 + Individual package example below:
 

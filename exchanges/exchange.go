@@ -8,14 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/common/crypto"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
-	"github.com/idoall/gocryptotrader/exchanges/kline"
-	"github.com/idoall/gocryptotrader/exchanges/orderbook"
+	"github.com/idoall/gocryptotrader/exchanges/asset"
+	"github.com/idoall/gocryptotrader/exchanges/protocol"
 	"github.com/idoall/gocryptotrader/exchanges/request"
-	"github.com/idoall/gocryptotrader/exchanges/ticker"
-	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
@@ -413,12 +411,6 @@ func (e *Base) SetEnabled(enabled bool) {
 // IsEnabled is a method that returns if the current exchange is enabled
 func (e *Base) IsEnabled() bool {
 	return e.Enabled
-}
-
-// SetAPISecretKeys is a method that sets the current API keys for the exchange
-func (e *Base) SetAPISecretKeys(APIKey, APISecret string) {
-	e.APIKey = APIKey
-	e.APISecret = APISecret
 }
 
 // SetAPIKeys is a method that sets the current API keys for the exchange

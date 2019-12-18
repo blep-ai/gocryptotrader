@@ -9,25 +9,14 @@ import (
 	"strconv"
 	"time"
 
-<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/common/crypto"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/request"
-	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/order"
 	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/idoall/gocryptotrader/exchanges/withdraw"
 	log "github.com/idoall/gocryptotrader/logger"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
->>>>>>> upstrem/master
 )
 
 const (
@@ -97,121 +86,9 @@ const (
 // depending on some factors (e.g. servers load, endpoint, etc.).
 type Bitfinex struct {
 	exchange.Base
-<<<<<<< HEAD
-	WebsocketConn         *wshandler.WebsocketConnection
-	WebsocketSubdChannels map[int]WebsocketChanInfo
-}
-
-// SetDefaults sets the basic defaults for bitfinex
-func (b *Bitfinex) SetDefaults() {
-	b.Name = "Bitfinex"
-	b.Enabled = false
-	b.Verbose = false
-	b.RESTPollingDelay = 10
-	b.WebsocketSubdChannels = make(map[int]WebsocketChanInfo)
-	b.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
-		exchange.AutoWithdrawFiatWithAPIPermission
-	b.RequestCurrencyPairFormat.Delimiter = ""
-	b.RequestCurrencyPairFormat.Uppercase = true
-	b.ConfigCurrencyPairFormat.Delimiter = ""
-	b.ConfigCurrencyPairFormat.Uppercase = true
-	b.AssetTypes = []string{ticker.Spot}
-	b.SupportsAutoPairUpdating = true
-	b.SupportsRESTTickerBatching = true
-	b.Requester = request.New(b.Name,
-		request.NewRateLimit(time.Second*60, bitfinexAuthRate),
-		request.NewRateLimit(time.Second*60, bitfinexUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	b.APIUrlDefault = bitfinexAPIURLBase
-	b.APIUrl = b.APIUrlDefault
-	b.Websocket = wshandler.New()
-	b.Websocket.Functionality = wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported
-	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
-
-// Setup takes in the supplied exchange configuration details and sets params
-func (b *Bitfinex) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		b.SetEnabled(false)
-	} else {
-
-		b.Enabled = true
-		// b.BaseAsset = exch.BaseAsset
-		// b.QuoteAsset = exch.QuoteAsset
-		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		b.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
-		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
-		b.SetHTTPClientTimeout(exch.HTTPTimeout)
-		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		b.RESTPollingDelay = exch.RESTPollingDelay
-		b.Verbose = exch.Verbose
-		b.HTTPDebugging = exch.HTTPDebugging
-		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		b.BaseCurrencies = exch.BaseCurrencies
-		b.AvailablePairs = exch.AvailablePairs
-		b.EnabledPairs = exch.EnabledPairs
-		err := b.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.Websocket.Setup(b.WsConnect,
-			b.Subscribe,
-			b.Unsubscribe,
-			exch.Name,
-			exch.Websocket,
-			exch.Verbose,
-			bitfinexWebsocket,
-			exch.WebsocketURL,
-			exch.AuthenticatedWebsocketAPISupport)
-		if err != nil {
-			log.Fatal(err)
-		}
-		b.WebsocketConn = &wshandler.WebsocketConnection{
-			ExchangeName:         b.Name,
-			URL:                  b.Websocket.GetWebsocketURL(),
-			ProxyURL:             b.Websocket.GetProxyAddress(),
-			Verbose:              b.Verbose,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
-		b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-		b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-		b.Websocket.Orderbook.Setup(
-			exch.WebsocketOrderbookBufferLimit,
-			true,
-			false,
-			false,
-			false,
-			exch.Name)
-	}
-=======
 	WebsocketConn              *wshandler.WebsocketConnection
 	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
 	WebsocketSubdChannels      map[int]WebsocketChanInfo
->>>>>>> upstrem/master
 }
 
 // GetPlatformStatus returns the Bifinex platform status

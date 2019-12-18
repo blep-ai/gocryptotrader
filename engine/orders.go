@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/communications/base"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/communications/base"
+	"github.com/idoall/gocryptotrader/exchanges/order"
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 // vars for the fund manager package

@@ -4,20 +4,13 @@ import (
 	"strings"
 	"testing"
 
-<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/connchecker"
 	"github.com/idoall/gocryptotrader/currency"
+	"github.com/idoall/gocryptotrader/database"
+	"github.com/idoall/gocryptotrader/exchanges/asset"
 	log "github.com/idoall/gocryptotrader/logger"
 	"github.com/idoall/gocryptotrader/ntpclient"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/connchecker"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"github.com/thrasher-corp/gocryptotrader/ntpclient"
->>>>>>> upstrem/master
 )
 
 const (

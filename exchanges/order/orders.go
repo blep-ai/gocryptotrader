@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/idoall/gocryptotrader/currency"
 )
 
 // NewOrder creates a new order and returns a an orderID

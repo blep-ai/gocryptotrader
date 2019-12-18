@@ -8,22 +8,11 @@ import (
 	"strconv"
 	"strings"
 
-<<<<<<< HEAD
-	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/common/convert"
+	"github.com/idoall/gocryptotrader/common/crypto"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/request"
-	"github.com/idoall/gocryptotrader/exchanges/ticker"
 	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
-	log "github.com/idoall/gocryptotrader/logger"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
->>>>>>> upstrem/master
 )
 
 const (
@@ -58,119 +47,7 @@ type Gateio struct {
 	exchange.Base
 }
 
-<<<<<<< HEAD
-// SetDefaults sets default values for the exchange
-func (g *Gateio) SetDefaults() {
-	g.Name = "Gateio"
-	g.Enabled = false
-	g.Fee = 0
-	g.Verbose = false
-	g.RESTPollingDelay = 10
-	g.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
-		exchange.NoFiatWithdrawals
-	g.RequestCurrencyPairFormat.Delimiter = "_"
-	g.RequestCurrencyPairFormat.Uppercase = false
-	g.ConfigCurrencyPairFormat.Delimiter = "_"
-	g.ConfigCurrencyPairFormat.Uppercase = true
-	g.AssetTypes = []string{ticker.Spot}
-	g.SupportsAutoPairUpdating = true
-	g.SupportsRESTTickerBatching = true
-	g.Requester = request.New(g.Name,
-		request.NewRateLimit(time.Second*10, gateioAuthRate),
-		request.NewRateLimit(time.Second*10, gateioUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	g.APIUrlDefault = gateioTradeURL
-	g.APIUrl = g.APIUrlDefault
-	g.APIUrlSecondaryDefault = gateioMarketURL
-	g.APIUrlSecondary = g.APIUrlSecondaryDefault
-	g.Websocket = wshandler.New()
-	g.Websocket.Functionality = wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketKlineSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketMessageCorrelationSupported
-	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
-
-// Setup sets user configuration
-func (g *Gateio) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		g.SetEnabled(false)
-	} else {
-		g.Enabled = true
-		// g.BaseAsset = exch.BaseAsset
-		// g.QuoteAsset = exch.QuoteAsset
-		g.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		g.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
-		g.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
-		g.SetHTTPClientTimeout(exch.HTTPTimeout)
-		g.RESTPollingDelay = exch.RESTPollingDelay
-		g.Verbose = exch.Verbose
-		g.BaseCurrencies = exch.BaseCurrencies
-		g.AvailablePairs = exch.AvailablePairs
-		g.EnabledPairs = exch.EnabledPairs
-		g.WebsocketURL = gateioWebsocketEndpoint
-		g.HTTPDebugging = exch.HTTPDebugging
-		err := g.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = g.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = g.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = g.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = g.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = g.Websocket.Setup(g.WsConnect,
-			g.Subscribe,
-			g.Unsubscribe,
-			exch.Name,
-			exch.Websocket,
-			exch.Verbose,
-			gateioWebsocketEndpoint,
-			exch.WebsocketURL,
-			exch.AuthenticatedWebsocketAPISupport)
-		if err != nil {
-			log.Fatal(err)
-		}
-		g.WebsocketConn = &wshandler.WebsocketConnection{
-			ExchangeName:         g.Name,
-			URL:                  g.Websocket.GetWebsocketURL(),
-			ProxyURL:             g.Websocket.GetProxyAddress(),
-			Verbose:              g.Verbose,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-			RateLimit:            gateioWebsocketRateLimit,
-		}
-		g.Websocket.Orderbook.Setup(
-			exch.WebsocketOrderbookBufferLimit,
-			true,
-			false,
-			false,
-			false,
-			exch.Name)
-	}
-}
-
-// GetSymbols 返回所有系统支持的交易对
-=======
 // GetSymbols returns all supported symbols
->>>>>>> upstrem/master
 func (g *Gateio) GetSymbols() ([]string, error) {
 	var result []string
 	urlPath := fmt.Sprintf("%s/%s/%s", g.API.Endpoints.URLSecondary, gateioAPIVersion, gateioSymbol)
@@ -181,7 +58,8 @@ func (g *Gateio) GetSymbols() ([]string, error) {
 	return result, err
 }
 
-// GetMarketInfo 返回所有系统支持的交易市场的参数信息，包括交易费，最小下单量，价格精度等。
+// GetMarketInfo returns information about all trading pairs, including
+// transaction fee, minimum order quantity, price accuracy and so on
 func (g *Gateio) GetMarketInfo() (MarketInfoResponse, error) {
 	type response struct {
 		Result string        `json:"result"`
@@ -383,13 +261,13 @@ func (g *Gateio) GetBalances() (BalancesResponse, error) {
 		g.SendAuthenticatedHTTPRequest(http.MethodPost, gateioBalances, "", &result)
 }
 
-// SpotNewOrder 下订单
+// SpotNewOrder places a new order
 func (g *Gateio) SpotNewOrder(arg SpotNewOrderRequestParams) (SpotNewOrderResponse, error) {
 	var result SpotNewOrderResponse
 
-	//获取交易对的价格精度格式
+	// Be sure to use the correct price precision before calling this
 	params := fmt.Sprintf("currencyPair=%s&rate=%s&amount=%s",
-		g.GetSymbol(),
+		arg.Symbol,
 		strconv.FormatFloat(arg.Price, 'f', -1, 64),
 		strconv.FormatFloat(arg.Amount, 'f', -1, 64),
 	)
@@ -398,9 +276,9 @@ func (g *Gateio) SpotNewOrder(arg SpotNewOrderRequestParams) (SpotNewOrderRespon
 	return result, g.SendAuthenticatedHTTPRequest(http.MethodPost, urlPath, params, &result)
 }
 
-// CancelOrder 取消订单
-// @orderID 下单单号
-// @symbol 交易币种对(如 ltc_btc)
+// CancelExistingOrder cancels an order given the supplied orderID and symbol
+// orderID order ID number
+// symbol trade pair (ltc_btc)
 func (g *Gateio) CancelExistingOrder(orderID int64, symbol string) (bool, error) {
 	type response struct {
 		Result  bool   `json:"result"`
@@ -409,7 +287,7 @@ func (g *Gateio) CancelExistingOrder(orderID int64, symbol string) (bool, error)
 	}
 
 	var result response
-	//获取交易对的价格精度格式
+	// Be sure to use the correct price precision before calling this
 	params := fmt.Sprintf("orderNumber=%d&currencyPair=%s",
 		orderID,
 		symbol,

@@ -2,62 +2,14 @@ package base
 
 import (
 	"time"
-<<<<<<< HEAD
-
-	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/exchanges/ticker"
-=======
->>>>>>> upstrem/master
 )
 
 // global vars contain staged update data that will be sent to the communication
 // mediums
 var (
-<<<<<<< HEAD
-	// map[exchangeName]
-	TickerStaged    map[string]map[string]map[string]ticker.Price
-	OrderbookStaged map[string]map[string]map[string]Orderbook
-	PortfolioStaged Portfolio
-	SettingsStaged  Settings
-	ServiceStarted  time.Time
-	m               sync.Mutex
-)
-
-// Orderbook 订单信息
-// medium
-type Orderbook struct {
-	CurrencyPair string
-	AssetType    string
-	TotalAsks    float64
-	TotalBids    float64
-	LastUpdated  string
-}
-
-// Ticker 交易数据信息
-// medium
-type Ticker struct {
-	CurrencyPair string
-	LastUpdated  string
-}
-
-// Portfolio holds the minimal portfolio details to be sent to a communication
-// medium
-type Portfolio struct {
-	ProfitLoss string
-}
-
-// Settings holds the minimal setting details to be sent to a communication
-// medium
-type Settings struct {
-	EnabledExchanges      string
-	EnabledCommunications string
-}
-
-=======
 	ServiceStarted time.Time
 )
 
->>>>>>> upstrem/master
 // Base enforces standard variables across communication packages
 type Base struct {
 	Name      string

@@ -10,16 +10,9 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
-<<<<<<< HEAD
-	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/common/crypto"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/request"
-	"github.com/idoall/gocryptotrader/exchanges/ticker"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
->>>>>>> upstrem/master
+	"github.com/idoall/gocryptotrader/exchanges/order"
 )
 
 const (

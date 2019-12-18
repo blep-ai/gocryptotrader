@@ -11,25 +11,14 @@ import (
 	"strings"
 	"time"
 
-<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/common/convert"
+	"github.com/idoall/gocryptotrader/common/crypto"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/request"
-	"github.com/idoall/gocryptotrader/exchanges/ticker"
+	"github.com/idoall/gocryptotrader/exchanges/asset"
 	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
->>>>>>> upstrem/master
 )
 
 const (
@@ -74,124 +63,10 @@ const (
 	binanceUnauthRate = 0
 )
 
-<<<<<<< HEAD
-// SetDefaults sets the basic defaults for Binance
-func (b *Binance) SetDefaults() {
-	b.Name = "Binance"
-	b.Enabled = false
-	b.Verbose = false
-	b.RESTPollingDelay = 10
-	b.RequestCurrencyPairFormat.Delimiter = ""
-	b.RequestCurrencyPairFormat.Uppercase = true
-	//------
-	b.ConfigCurrencyPairFormat.Delimiter = "-"
-	b.ConfigCurrencyPairFormat.Uppercase = true
-	b.AssetTypes = []string{ticker.Spot}
-	b.SupportsAutoPairUpdating = true
-	b.SupportsRESTTickerBatching = true
-	//-----
-	b.APIWithdrawPermissions = exchange.AutoWithdrawCrypto |
-		exchange.NoFiatWithdrawals
-	b.SetValues()
-	b.Requester = request.New(b.Name,
-		request.NewRateLimit(time.Second, binanceAuthRate),
-		request.NewRateLimit(time.Second, binanceUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	b.APIUrlDefault = apiURL
-	b.APIUrl = b.APIUrlDefault
-	b.Websocket = wshandler.New()
-	b.WebsocketURL = binanceDefaultWebsocketURL
-	b.Websocket.Functionality = wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketTickerSupported |
-		wshandler.WebsocketKlineSupported |
-		wshandler.WebsocketOrderbookSupported
-	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
-
-// Setup takes in the supplied exchange configuration details and sets params
-func (b *Binance) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		b.SetEnabled(false)
-	} else {
-		b.Enabled = true
-		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
-		b.SetHTTPClientTimeout(exch.HTTPTimeout)
-		b.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		b.RESTPollingDelay = exch.RESTPollingDelay
-		b.Verbose = exch.Verbose
-		b.HTTPDebugging = exch.HTTPDebugging
-		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		b.BaseCurrencies = exch.BaseCurrencies
-		b.AvailablePairs = exch.AvailablePairs
-		b.EnabledPairs = exch.EnabledPairs
-		err := b.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.Websocket.Setup(b.WSConnect,
-			nil,
-			nil,
-			exch.Name,
-			exch.Websocket,
-			exch.Verbose,
-			binanceDefaultWebsocketURL,
-			exch.WebsocketURL,
-			exch.AuthenticatedWebsocketAPISupport)
-		if err != nil {
-			log.Fatal(err)
-		}
-		b.WebsocketConn = &wshandler.WebsocketConnection{
-			ExchangeName:         b.Name,
-			URL:                  b.Websocket.GetWebsocketURL(),
-			ProxyURL:             b.Websocket.GetProxyAddress(),
-			Verbose:              b.Verbose,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
-		b.Websocket.Orderbook.Setup(
-			exch.WebsocketOrderbookBufferLimit,
-			true,
-			true,
-			true,
-			false,
-			exch.Name)
-	}
-}
-
-// GetExchangeValidCurrencyPairs returns the full pair list from the exchange
-// at the moment do not integrate with config currency pairs automatically
-func (b *Binance) GetExchangeValidCurrencyPairs() ([]string, error) {
-	var validCurrencyPairs []string
-
-	info, err := b.GetExchangeInfo()
-	if err != nil {
-		return nil, err
-	}
-=======
 // Binance is the overarching type across the Bithumb package
 type Binance struct {
 	exchange.Base
 	WebsocketConn *wshandler.WebsocketConnection
->>>>>>> upstrem/master
 
 	// Valid string list that is required by the exchange
 	validLimits    []int
@@ -214,21 +89,10 @@ func (b *Binance) GetExchangeInfo() (ExchangeInfo, error) {
 // limit: returned limit amount
 // 获取交易深度
 func (b *Binance) GetOrderBook(obd OrderBookDataRequestParams) (OrderBook, error) {
-<<<<<<< HEAD
-	orderbook, resp := OrderBook{}, OrderBookData{}
-
-	// if err := b.CheckLimit(limit); err != nil {
-	// 	return orderbook, err
-	// }
-	// if err := b.CheckSymbol(symbol); err != nil {
-	// 	return orderbook, err
-	// }
-=======
 	var orderbook OrderBook
 	if err := b.CheckLimit(obd.Limit); err != nil {
 		return orderbook, err
 	}
->>>>>>> upstrem/master
 
 	params := url.Values{}
 	params.Set("symbol", strings.ToUpper(obd.Symbol))
@@ -424,14 +288,6 @@ func (b *Binance) GetTickers() ([]PriceChangeStats, error) {
 // 获取最新价格
 func (b *Binance) GetLatestSpotPrice(symbol string) (SymbolPrice, error) {
 	resp := SymbolPrice{}
-<<<<<<< HEAD
-
-	// if err := b.CheckSymbol(symbol); err != nil {
-	// 	return resp, err
-	// }
-
-=======
->>>>>>> upstrem/master
 	params := url.Values{}
 	params.Set("symbol", strings.ToUpper(symbol))
 
@@ -548,15 +404,9 @@ func (b *Binance) AllOrders(symbol, orderId, limit string) ([]QueryOrderData, er
 	path := b.API.Endpoints.URL + allOrders
 
 	params := url.Values{}
-<<<<<<< HEAD
-	params.Set("symbol", common.StringToUpper(symbol))
+	params.Set("symbol", strings.ToUpper(symbol))
 	if orderId != "" {
 		params.Set("orderId", orderId)
-=======
-	params.Set("symbol", strings.ToUpper(symbol))
-	if orderID != "" {
-		params.Set("orderId", orderID)
->>>>>>> upstrem/master
 	}
 	if limit != "" {
 		params.Set("limit", limit)

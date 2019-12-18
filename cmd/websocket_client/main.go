@@ -8,15 +8,10 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-<<<<<<< HEAD:tools/websocket_client/main.go
 	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/common/crypto"
 	"github.com/idoall/gocryptotrader/config"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
->>>>>>> upstrem/master:cmd/websocket_client/main.go
+	"github.com/idoall/gocryptotrader/exchanges/asset"
 )
 
 // Vars for the websocket client

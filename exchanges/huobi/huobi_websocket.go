@@ -10,22 +10,13 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-<<<<<<< HEAD
-	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/common/crypto"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/exchanges/asset"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
 	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
 	log "github.com/idoall/gocryptotrader/logger"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
->>>>>>> upstrem/master
 )
 
 const (
@@ -57,13 +48,8 @@ const (
 	rateLimit  = 20
 )
 
-<<<<<<< HEAD
-// comms 实例化websocket连接之间的通信通道
-var comms = make(chan WsMessage, 1)
-=======
 // Instantiates a communications channel between websocket connections
 var comms = make(chan WsMessage)
->>>>>>> upstrem/master
 
 // WsConnect 初始化 websocket 连接
 func (h *HUOBI) WsConnect() error {
@@ -392,15 +378,8 @@ func (h *HUOBI) GenerateDefaultSubscriptions() {
 
 // Subscribe 发送订阅消息到 websocket
 func (h *HUOBI) Subscribe(channelToSubscribe wshandler.WebsocketChannelSubscription) error {
-<<<<<<< HEAD
-
-	// 如果包含 订单 和 帐号 请求 websocket 认证
-	if common.StringContains(channelToSubscribe.Channel, "orders.") ||
-		common.StringContains(channelToSubscribe.Channel, "accounts") {
-=======
 	if strings.Contains(channelToSubscribe.Channel, "orders.") ||
 		strings.Contains(channelToSubscribe.Channel, "accounts") {
->>>>>>> upstrem/master
 		return h.wsAuthenticatedSubscribe("sub", wsAccountsOrdersEndPoint+channelToSubscribe.Channel, channelToSubscribe.Channel)
 	}
 	return h.WebsocketConn.SendMessage(WsRequest{Subscribe: channelToSubscribe.Channel})

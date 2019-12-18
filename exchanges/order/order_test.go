@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/idoall/gocryptotrader/currency"
 )
 
 func TestValidate(t *testing.T) {

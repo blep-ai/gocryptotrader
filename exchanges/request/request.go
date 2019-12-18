@@ -14,77 +14,13 @@ import (
 	"strings"
 	"time"
 
-<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/common/timedmutex"
 	"github.com/idoall/gocryptotrader/exchanges/mock"
 	"github.com/idoall/gocryptotrader/exchanges/nonce"
 	log "github.com/idoall/gocryptotrader/logger"
 )
 
-var supportedMethods = []string{http.MethodGet, http.MethodPost, http.MethodHead,
-	http.MethodPut, http.MethodDelete, http.MethodOptions, http.MethodConnect}
-
-const (
-	maxRequestJobs              = 50
-	proxyTLSTimeout             = 15 * time.Second
-	defaultTimeoutRetryAttempts = 10
-)
-
-// Requester struct for the request client
-type Requester struct {
-	HTTPClient           *http.Client
-	UnauthLimit          *RateLimit
-	AuthLimit            *RateLimit
-	Name                 string
-	UserAgent            string
-	Cycle                time.Time
-	timeoutRetryAttempts int
-	m                    sync.Mutex
-	Jobs                 chan Job
-	disengage            chan struct{}
-	WorkerStarted        bool
-	Nonce                nonce.Nonce
-	fifoLock             sync.Mutex
-}
-
-// RateLimit struct
-type RateLimit struct {
-	Duration time.Duration
-	Rate     int
-	Requests int
-	Mutex    sync.Mutex
-}
-
-// JobResult holds a request job result
-type JobResult struct {
-	Error  error
-	Result interface{}
-}
-
-// Job holds a request job
-type Job struct {
-	Request       *http.Request
-	Method        string
-	Path          string
-	Headers       map[string]string
-	Body          io.Reader
-	Result        interface{}
-	JobResult     chan *JobResult
-	AuthRequest   bool
-	Verbose       bool
-	HTTPDebugging bool
-	Record        bool
-}
-
-=======
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/timedmutex"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
-)
-
->>>>>>> upstrem/master
 // NewRateLimit creates a new RateLimit
 func NewRateLimit(d time.Duration, rate int) *RateLimit {
 	return &RateLimit{Duration: d, Rate: rate}
@@ -305,19 +241,11 @@ func (r *Requester) DoRequest(req *http.Request, path string, body io.Reader, re
 		resp, err := r.HTTPClient.Do(req)
 		if err != nil {
 			if timeoutErr, ok := err.(net.Error); ok && timeoutErr.Timeout() {
-<<<<<<< HEAD
-				// if verbose {
-				log.Errorf("%s request has timed-out retrying request, count %d",
-					r.Name,
-					i)
-				// }
-=======
 				if verbose {
 					log.Errorf(log.ExchangeSys, "%s request has timed-out retrying request, count %d",
 						r.Name,
 						i)
 				}
->>>>>>> upstrem/master
 				timeoutError = err
 				continue
 			}

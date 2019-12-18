@@ -7,18 +7,11 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
-<<<<<<< HEAD:websocket.go
-	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/common/crypto"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
+	"github.com/idoall/gocryptotrader/exchanges/asset"
 	log "github.com/idoall/gocryptotrader/logger"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
->>>>>>> upstrem/master:engine/websocket.go
 )
 
 // Const vars for websocket

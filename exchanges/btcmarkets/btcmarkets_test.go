@@ -5,21 +5,12 @@ import (
 	"os"
 	"testing"
 
-<<<<<<< HEAD
-	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
-	exchange "github.com/idoall/gocryptotrader/exchanges"
-=======
-	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
->>>>>>> upstrem/master
+	"github.com/idoall/gocryptotrader/exchanges/asset"
+	"github.com/idoall/gocryptotrader/exchanges/order"
 )
 
-vagithub.com/idoall
-github.com/idoall
 // Please sgithub.com/idoallhere to do better tests
 const (
 	apiKey                  = ""

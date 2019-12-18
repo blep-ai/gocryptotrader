@@ -5,14 +5,9 @@ import (
 	"fmt"
 	"sort"
 
-<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/currency"
+	"github.com/idoall/gocryptotrader/exchanges/asset"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
-=======
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
->>>>>>> upstrem/master
 )
 
 // Setup sets private variables

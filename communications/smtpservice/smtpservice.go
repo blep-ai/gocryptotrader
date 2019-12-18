@@ -6,15 +6,9 @@ import (
 	"net/smtp"
 	"strings"
 
-<<<<<<< HEAD
-	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/communications/base"
 	"github.com/idoall/gocryptotrader/config"
-=======
-	"github.com/thrasher-corp/gocryptotrader/communications/base"
-	"github.com/thrasher-corp/gocryptotrader/config"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
->>>>>>> upstrem/master
+	log "github.com/idoall/gocryptotrader/logger"
 )
 
 const (

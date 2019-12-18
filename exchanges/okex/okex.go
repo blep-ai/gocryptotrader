@@ -4,17 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
-	exchange "github.com/idoall/gocryptotrader/exchanges"
 	"github.com/idoall/gocryptotrader/exchanges/okgroup"
-	"github.com/idoall/gocryptotrader/exchanges/request"
-	"github.com/idoall/gocryptotrader/exchanges/ticker"
-	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
->>>>>>> upstrem/master
 )
 
 const (

@@ -8,30 +8,19 @@ import (
 	"sync"
 	"time"
 
-<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/exchanges/asset"
+	"github.com/idoall/gocryptotrader/exchanges/order"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
+	"github.com/idoall/gocryptotrader/exchanges/protocol"
+	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
 	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/idoall/gocryptotrader/exchanges/withdraw"
 	log "github.com/idoall/gocryptotrader/logger"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
->>>>>>> upstrem/master
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -406,27 +395,9 @@ func (h *HUOBI) GetAccountID() ([]Account, error) {
 // HUOBI exchange - to-do
 func (h *HUOBI) GetAccountInfo() (exchange.AccountInfo, error) {
 	var info exchange.AccountInfo
-<<<<<<< HEAD
-	info.Exchange = h.GetName()
-
-	// 获取帐户ID
-	accounts, err := h.GetAccountID()
-	if err != nil {
-		return info, err
-	}
-
-	for _, account := range accounts {
-		var acc exchange.Account
-
-		acc.ID = strconv.FormatInt(account.ID, 10)
-
-		// 根据 ID 获取余额
-		balances, err := h.GetAccountBalance(acc.ID)
-=======
 	info.Exchange = h.Name
 	if h.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		resp, err := h.wsGetAccountsList()
->>>>>>> upstrem/master
 		if err != nil {
 			return info, err
 		}

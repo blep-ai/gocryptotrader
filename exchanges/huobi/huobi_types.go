@@ -1,10 +1,5 @@
 package huobi
 
-<<<<<<< HEAD
-import "github.com/idoall/gocryptotrader/currency"
-
-=======
->>>>>>> upstrem/master
 // Response stores the Huobi response information
 type Response struct {
 	Status       string `json:"status"`

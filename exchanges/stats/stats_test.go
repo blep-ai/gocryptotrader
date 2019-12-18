@@ -3,12 +3,8 @@ package stats
 import (
 	"testing"
 
-<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/currency"
-=======
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
->>>>>>> upstrem/master
+	"github.com/idoall/gocryptotrader/exchanges/asset"
 )
 
 func TestLenByPrice(t *testing.T) {

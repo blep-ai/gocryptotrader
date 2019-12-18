@@ -1,28 +1,19 @@
 package lakebtc
 
 import (
-<<<<<<< HEAD
+	"log"
+	"os"
 	"testing"
 
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
-=======
-	"log"
-	"os"
-	"testing"
-
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
->>>>>>> upstrem/master
+	"github.com/idoall/gocryptotrader/exchanges/asset"
+	"github.com/idoall/gocryptotrader/exchanges/order"
+	"github.com/idoall/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/idoall/gocryptotrader/exchanges/withdraw"
 )
 
 var l LakeBTC
@@ -34,24 +25,6 @@ const (
 	canManipulateRealOrders = false
 )
 
-<<<<<<< HEAD
-func TestSetDefaults(t *testing.T) {
-	l.SetDefaults()
-}
-
-func TestSetup(t *testing.T) {
-	cfg := config.GetConfig()
-	cfg.LoadConfig("../../testdata/configtest.json")
-	lakebtcConfig, err := cfg.GetExchangeConfig("LakeBTC")
-	if err != nil {
-		t.Error("Test Failed - LakeBTC Setup() init error")
-	}
-	lakebtcConfig.AuthenticatedAPISupport = true
-	lakebtcConfig.APIKey = apiKey
-	lakebtcConfig.APISecret = apiSecret
-
-	l.Setup(&lakebtcConfig)
-=======
 func TestMain(m *testing.M) {
 	l.SetDefaults()
 	cfg := config.GetConfig()
@@ -74,7 +47,6 @@ func TestMain(m *testing.M) {
 	l.API.Endpoints.WebsocketURL = lakeBTCWSURL
 
 	os.Exit(m.Run())
->>>>>>> upstrem/master
 }
 
 func TestFetchTradablePairs(t *testing.T) {

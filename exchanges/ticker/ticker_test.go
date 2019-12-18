@@ -9,14 +9,9 @@ import (
 	"testing"
 	"time"
 
-<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/currency"
-	log "github.com/idoall/gocryptotrader/logger"
-=======
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/dispatch"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
->>>>>>> upstrem/master
+	"github.com/idoall/gocryptotrader/dispatch"
+	"github.com/idoall/gocryptotrader/exchanges/asset"
 )
 
 func TestMain(m *testing.M) {

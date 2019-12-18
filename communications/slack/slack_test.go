@@ -4,14 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-<<<<<<< HEAD
-	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/communications/base"
 	"github.com/idoall/gocryptotrader/config"
-=======
-	"github.com/thrasher-corp/gocryptotrader/communications/base"
-	"github.com/thrasher-corp/gocryptotrader/config"
->>>>>>> upstrem/master
 )
 
 const (

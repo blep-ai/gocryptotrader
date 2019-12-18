@@ -1,14 +1,10 @@
 package kraken
 
-<<<<<<< HEAD
-import "github.com/idoall/gocryptotrader/currency"
-=======
 import (
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/idoall/gocryptotrader/currency"
 )
->>>>>>> upstrem/master
 
 // TimeResponse type
 type TimeResponse struct {

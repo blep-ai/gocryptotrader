@@ -16,22 +16,11 @@ import (
 	"strings"
 	"time"
 
-<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/common/crypto"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/request"
-	"github.com/idoall/gocryptotrader/exchanges/ticker"
 	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
-	log "github.com/idoall/gocryptotrader/logger"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
->>>>>>> upstrem/master
 )
 
 const (
@@ -81,145 +70,7 @@ type HUOBI struct {
 	AuthenticatedWebsocketConn *wshandler.WebsocketConnection
 }
 
-<<<<<<< HEAD
-// SetDefaults sets default values for the exchange
-func (h *HUOBI) SetDefaults() {
-	h.Name = "Huobi"
-	h.Enabled = false
-	h.Fee = 0
-	h.Verbose = false
-	h.RESTPollingDelay = 10
-	h.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithSetup |
-		exchange.NoFiatWithdrawals
-	h.RequestCurrencyPairFormat.Delimiter = ""
-	h.RequestCurrencyPairFormat.Uppercase = false
-	h.ConfigCurrencyPairFormat.Delimiter = "-"
-	h.ConfigCurrencyPairFormat.Uppercase = true
-	h.AssetTypes = []string{ticker.Spot}
-	h.SupportsAutoPairUpdating = true
-	h.SupportsRESTTickerBatching = false
-	h.Requester = request.New(h.Name,
-		request.NewRateLimit(time.Second*10, huobiAuthRate),
-		request.NewRateLimit(time.Second*10, huobiUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	h.APIUrlDefault = huobiAPIURL
-	h.APIUrl = h.APIUrlDefault
-
-	// 初始化 WebSocket 实例
-	h.Websocket = wshandler.New()
-
-	// 使用位运算符，实际是相加后的结果
-	h.Websocket.Functionality = wshandler.WebsocketKlineSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketAccountDataSupported |
-		wshandler.WebsocketMessageCorrelationSupported
-	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
-
-// Setup sets user configuration
-func (h *HUOBI) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		h.SetEnabled(false)
-	} else {
-		h.Enabled = true
-
-		// 是否允许 API 认证
-		h.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		h.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
-		h.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
-		h.APIAuthPEMKeySupport = exch.APIAuthPEMKeySupport
-		h.APIAuthPEMKey = exch.APIAuthPEMKey
-		h.SetHTTPClientTimeout(exch.HTTPTimeout)
-		h.SetHTTPClientUserAgent(exch.HTTPUserAgent)
-		h.RESTPollingDelay = exch.RESTPollingDelay
-		h.Verbose = exch.Verbose
-		h.HTTPDebugging = exch.HTTPDebugging
-
-		// 设置 WebSocket 状态，建议连接，发送订阅
-		h.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		h.BaseCurrencies = exch.BaseCurrencies
-		h.AvailablePairs = exch.AvailablePairs
-		h.EnabledPairs = exch.EnabledPairs
-		err := h.SetCurrencyPairFormat()
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// 设置交易类型，是币币还是其他
-		err = h.SetAssetTypes()
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// 设置是否支持自动更新交易对
-		err = h.SetAutoPairDefaults()
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// 设置请求的 API URL
-		err = h.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// 如果配置了代理，设置 http 和 websocket 使用代理
-		err = h.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// 设置 websocket 的变量和连接
-		err = h.Websocket.Setup(h.WsConnect,
-			h.Subscribe,
-			h.Unsubscribe,
-			exch.Name,
-			exch.Websocket,
-			exch.Verbose,
-			wsMarketURL,
-			exch.WebsocketURL,
-			exch.AuthenticatedWebsocketAPISupport)
-		if err != nil {
-			log.Fatal(err)
-		}
-		h.WebsocketConn = &wshandler.WebsocketConnection{
-			ExchangeName:         h.Name,
-			URL:                  wsMarketURL,
-			ProxyURL:             h.Websocket.GetProxyAddress(),
-			Verbose:              h.Verbose,
-			RateLimit:            rateLimit,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
-		h.AuthenticatedWebsocketConn = &wshandler.WebsocketConnection{
-			ExchangeName:         h.Name,
-			URL:                  wsAccountsOrdersURL,
-			ProxyURL:             h.Websocket.GetProxyAddress(),
-			Verbose:              h.Verbose,
-			RateLimit:            rateLimit,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
-		h.Websocket.Orderbook.Setup(
-			exch.WebsocketOrderbookBufferLimit,
-			false,
-			false,
-			false,
-			false,
-			exch.Name)
-	}
-}
-
-// GetSpotKline returns K 线数据（蜡烛图)
-=======
 // GetSpotKline returns kline data
->>>>>>> upstrem/master
 // KlinesRequestParams contains symbol, period and size
 func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 	vals := url.Values{}
@@ -245,9 +96,6 @@ func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 	return result.Data, err
 }
 
-<<<<<<< HEAD
-// GetMarketDetailMerged 最近24小时的交易聚合信息
-=======
 // GetTickers returns the ticker for the specified symbol
 func (h *HUOBI) GetTickers() (Tickers, error) {
 	var result Tickers
@@ -256,7 +104,6 @@ func (h *HUOBI) GetTickers() (Tickers, error) {
 }
 
 // GetMarketDetailMerged returns the ticker for the specified symbol
->>>>>>> upstrem/master
 func (h *HUOBI) GetMarketDetailMerged(symbol string) (DetailMerged, error) {
 	vals := url.Values{}
 	vals.Set("symbol", symbol)

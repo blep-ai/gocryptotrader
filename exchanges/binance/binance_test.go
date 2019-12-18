@@ -1,27 +1,14 @@
 package binance
 
 import (
-	"encoding/json"
-	"fmt"
 	"testing"
-<<<<<<< HEAD
-	"time"
 
-	"github.com/idoall/TokenExchangeCommon/commonutils"
 	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/binance"
-=======
-
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
->>>>>>> upstrem/master
+	"github.com/idoall/gocryptotrader/exchanges/asset"
+	"github.com/idoall/gocryptotrader/exchanges/order"
+	"github.com/idoall/gocryptotrader/exchanges/withdraw"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -57,58 +44,27 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestGetOrderBook(t *testing.T) {
 	t.Parallel()
-<<<<<<< HEAD
-	res, err := b.GetOrderBook(OrderBookDataRequestParams{
-		Symbol: b.GetSymbol(),
-=======
 
 	_, err := b.GetOrderBook(OrderBookDataRequestParams{
 		Symbol: "BTCUSDT",
->>>>>>> upstrem/master
 		Limit:  10,
 	})
 
 	if err != nil {
-<<<<<<< HEAD
-		t.Error("Test Failed - Binance GetOrderBook() error", err)
-	} else {
-		fmt.Println("----------Bids-------")
-		for _, v := range res.Bids {
-			b, _ := json.Marshal(v)
-			fmt.Println(string(b))
-		}
-		fmt.Println("----------Asks-------")
-		for _, v := range res.Asks {
-			b, _ := json.Marshal(v)
-			fmt.Println(string(b))
-		}
-
-=======
 		t.Error("Binance GetOrderBook() error", err)
->>>>>>> upstrem/master
 	}
 }
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 
-	list, err := b.GetRecentTrades(RecentTradeRequestParams{
-		Symbol: b.GetSymbol(),
+	_, err := b.GetRecentTrades(RecentTradeRequestParams{
+		Symbol: "BTCUSDT",
 		Limit:  15,
 	})
 
 	if err != nil {
-<<<<<<< HEAD
-		t.Error("Test Failed - Binance GetRecentTrades() error", err)
-	} else {
-		for k, v := range list {
-			b, _ := json.Marshal(v)
-			fmt.Println(k, string(b))
-		}
-
-=======
 		t.Error("Binance GetRecentTrades() error", err)
->>>>>>> upstrem/master
 	}
 }
 
@@ -137,7 +93,7 @@ func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
 
 	_, err := b.GetSpotKline(KlinesRequestParams{
-		Symbol:   b.GetSymbol(),
+		Symbol:   "BTCUSDT",
 		Interval: TimeIntervalFiveMinutes,
 		Limit:    24,
 	})
@@ -161,35 +117,6 @@ func TestGetPriceChangeStats(t *testing.T) {
 	_, err := b.GetPriceChangeStats("BTCUSDT")
 	if err != nil {
 		t.Error("Binance GetPriceChangeStats() error", err)
-	}
-}
-
-func TestGetKlines(t *testing.T) {
-	t.Parallel()
-	toBeCharge := "2017-07-20 12:00:00" //待转化为时间戳的字符串 注意 这里的小时和分钟还要秒必须写 因为是跟着模板走的 修改模板的话也可以不写
-	toEnCharge := "2019-07-20 12:00:00" //待转化为时间戳的字符串 注意 这里的小时和分钟还要秒必须写 因为是跟着模板走的 修改模板的话也可以不写
-
-	timeLayout := "2006-01-02 15:04:05"  //时区格式化模板
-	loc, _ := time.LoadLocation("Local") //重要：获取时区
-	var startTime, endTime time.Time
-
-	startTime, _ = time.ParseInLocation(timeLayout, toBeCharge, loc)
-	endTime, _ = time.ParseInLocation(timeLayout, toEnCharge, loc)
-	pair := currency.Pair{Base: currency.BTC, Quote: currency.USDT}
-
-	klines, err := b.GetKlines(binance.KlinesRequestParams{
-		Symbol:    pair.String(),
-		Interval:  binance.TimeIntervalHour,
-		Limit:     100,
-		StartTime: commonutils.UnixNesc(startTime),
-		EndTime:   commonutils.UnixNesc(endTime),
-	})
-	if err != nil {
-		t.Error(err)
-	} else {
-		for _, v := range klines {
-			fmt.Println(v)
-		}
 	}
 }
 
@@ -220,49 +147,6 @@ func TestGetBestPrice(t *testing.T) {
 	}
 }
 
-<<<<<<< HEAD
-func TestNewOrder(t *testing.T) {
-	t.Parallel()
-
-	if apiKey == "" || apiSecret == "" {
-		t.Skip()
-	}
-	_, err := b.NewOrder(&NewOrderRequest{
-		Symbol:      "BTCUSDT",
-		Side:        BinanceRequestParamsSideSell,
-		TradeType:   BinanceRequestParamsOrderLimit,
-		TimeInForce: BinanceRequestParamsTimeGTC,
-		Quantity:    0.01,
-		Price:       1536.1,
-	})
-	if err == nil {
-		t.Error("Test Failed - Binance NewOrder() error", err)
-	}
-}
-
-func TestCancelExistingOrder(t *testing.T) {
-	t.Parallel()
-
-	if apiKey == "" || apiSecret == "" {
-		t.Skip()
-	}
-
-	_, err := b.CancelExistingOrder("BTCUSDT", 82584683, "")
-	if err != nil {
-		t.Error("Test Failed - Binance CancelExistingOrder() error", err)
-	}
-}
-
-func TestQueryOrder(t *testing.T) {
-	t.Parallel()
-	res, err := b.QueryOrder(b.GetSymbol(), "", 1337)
-	if err != nil {
-		t.Error("Test Failed - Binance QueryOrder() error", err)
-	} else {
-		//{"code":0,"msg":"","symbol":"BTCUSDT","orderId":131046063,"clientOrderId":"2t38MQXdRe9HvctyRdUbIT","price":"100000","origQty":"0.01","executedQty":"0","status":"NEW","timeInForce":"GTC","type":"LIMIT","side":"SELL","stopPrice":"0","icebergQty":"0","time":1531384312008,"isWorking":true}
-		b, _ := json.Marshal(res)
-		fmt.Println(string(b))
-=======
 func TestQueryOrder(t *testing.T) {
 	t.Parallel()
 
@@ -273,12 +157,7 @@ func TestQueryOrder(t *testing.T) {
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
 		t.Error("QueryOrder() expecting an error when no keys are set")
 	case mockTests && err != nil:
-<<<<<<< HEAD
-		t.Error("Test Failed - Mock QueryOrder() error", err)
->>>>>>> upstrem/master
-=======
 		t.Error("Mock QueryOrder() error", err)
->>>>>>> upstrem/master
 	}
 }
 

@@ -5,59 +5,14 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/currency"
+	"github.com/idoall/gocryptotrader/exchanges/asset"
+	"github.com/idoall/gocryptotrader/exchanges/protocol"
 	"github.com/idoall/gocryptotrader/exchanges/websocket/wsorderbook"
-=======
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wsorderbook"
->>>>>>> upstrem/master
 )
 
 // Websocket functionality list and state consts
 const (
-<<<<<<< HEAD
-	NoWebsocketSupport                       uint32 = 0
-	WebsocketTickerSupported                 uint32 = 1 << (iota - 1) //1
-	WebsocketOrderbookSupported                                       //2
-	WebsocketKlineSupported                                           //4
-	WebsocketTradeDataSupported                                       //8
-	WebsocketAccountSupported                                         //16
-	WebsocketAllowsRequests                                           //32
-	WebsocketSubscribeSupported                                       //64
-	WebsocketUnsubscribeSupported                                     //128
-	WebsocketAuthenticatedEndpointsSupported                          //256
-	WebsocketAccountDataSupported                                     //512
-	WebsocketSubmitOrderSupported
-	WebsocketCancelOrderSupported
-	WebsocketWithdrawSupported
-	WebsocketMessageCorrelationSupported //8192
-	WebsocketSequenceNumberSupported
-	WebsocketDeadMansSwitchSupported //32768
-
-	WebsocketTickerSupportedText                 = "TICKER STREAMING SUPPORTED"
-	WebsocketOrderbookSupportedText              = "ORDERBOOK STREAMING SUPPORTED"
-	WebsocketKlineSupportedText                  = "KLINE STREAMING SUPPORTED"
-	WebsocketTradeDataSupportedText              = "TRADE STREAMING SUPPORTED"
-	WebsocketAccountSupportedText                = "ACCOUNT STREAMING SUPPORTED"
-	WebsocketAllowsRequestsText                  = "WEBSOCKET REQUESTS SUPPORTED"
-	NoWebsocketSupportText                       = "WEBSOCKET NOT SUPPORTED"
-	UnknownWebsocketFunctionality                = "UNKNOWN FUNCTIONALITY BITMASK"
-	WebsocketSubscribeSupportedText              = "WEBSOCKET SUBSCRIBE SUPPORTED"
-	WebsocketUnsubscribeSupportedText            = "WEBSOCKET UNSUBSCRIBE SUPPORTED"
-	WebsocketAuthenticatedEndpointsSupportedText = "WEBSOCKET AUTHENTICATED ENDPOINTS SUPPORTED"
-	WebsocketAccountDataSupportedText            = "WEBSOCKET ACCOUNT DATA SUPPORTED"
-	WebsocketSubmitOrderSupportedText            = "WEBSOCKET SUBMIT ORDER SUPPORTED"
-	WebsocketCancelOrderSupportedText            = "WEBSOCKET CANCEL ORDER SUPPORTED"
-	WebsocketWithdrawSupportedText               = "WEBSOCKET WITHDRAW SUPPORTED"
-	WebsocketMessageCorrelationSupportedText     = "WEBSOCKET MESSAGE CORRELATION SUPPORTED"
-	WebsocketSequenceNumberSupportedText         = "WEBSOCKET SEQUENCE NUMBER SUPPORTED"
-	WebsocketDeadMansSwitchSupportedText         = "WEBSOCKET DEAD MANS SWITCH SUPPORTED"
-
-=======
->>>>>>> upstrem/master
 	// WebsocketNotEnabled alerts of a disabled websocket
 	WebsocketNotEnabled      = "exchange_websocket_not_enabled"
 	manageSubscriptionsDelay = 5 * time.Second

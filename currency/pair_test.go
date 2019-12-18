@@ -3,11 +3,6 @@ package currency
 import (
 	"encoding/json"
 	"testing"
-<<<<<<< HEAD
-
-	"github.com/idoall/gocryptotrader/common"
-=======
->>>>>>> upstrem/master
 )
 
 const (

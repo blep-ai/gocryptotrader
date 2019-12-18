@@ -3,11 +3,6 @@ package config
 import (
 	"io/ioutil"
 	"testing"
-<<<<<<< HEAD
-
-	"github.com/idoall/gocryptotrader/common"
-=======
->>>>>>> upstrem/master
 )
 
 func TestPromptForConfigEncryption(t *testing.T) {

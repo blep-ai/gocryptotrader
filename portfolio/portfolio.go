@@ -201,14 +201,8 @@ func (p *Base) RemoveAddress(address, description string, coinType currency.Code
 
 // UpdatePortfolio adds to the portfolio addresses by coin type
 func (p *Base) UpdatePortfolio(addresses []string, coinType currency.Code) bool {
-<<<<<<< HEAD
-	// 如果是交易所的帐号不更新
-	if common.StringContains(common.JoinStrings(addresses, ","), PortfolioAddressExchange) ||
-		common.StringContains(common.JoinStrings(addresses, ","), PortfolioAddressPersonal) {
-=======
 	if strings.Contains(strings.Join(addresses, ","), PortfolioAddressExchange) ||
 		strings.Contains(strings.Join(addresses, ","), PortfolioAddressPersonal) {
->>>>>>> upstrem/master
 		return true
 	}
 

@@ -1,12 +1,8 @@
 package alphapoint
 
-<<<<<<< HEAD
-import exchange "github.com/idoall/gocryptotrader/exchanges"
-=======
 import (
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/idoall/gocryptotrader/exchanges/order"
 )
->>>>>>> upstrem/master
 
 // Response contains general responses from the exchange
 type Response struct {

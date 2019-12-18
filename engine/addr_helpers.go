@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/idoall/gocryptotrader/currency"
 )
 
 // DepositAddressStore stores a list of exchange deposit addresses

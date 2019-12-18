@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/idoall/gocryptotrader/currency"
 )
 
 const (

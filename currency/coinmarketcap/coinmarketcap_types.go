@@ -3,7 +3,7 @@ package coinmarketcap
 import (
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/idoall/gocryptotrader/exchanges/request"
 )
 
 // Coinmarketcap account plan bitmasks, url and enpoint consts

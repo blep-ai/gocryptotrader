@@ -2,12 +2,6 @@ package base
 
 import (
 	"testing"
-<<<<<<< HEAD
-
-	"github.com/idoall/gocryptotrader/exchanges/orderbook"
-	"github.com/idoall/gocryptotrader/exchanges/ticker"
-=======
->>>>>>> upstrem/master
 )
 
 var (

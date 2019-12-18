@@ -4,11 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-<<<<<<< HEAD
-
-	"github.com/idoall/gocryptotrader/common"
-=======
->>>>>>> upstrem/master
 )
 
 func TestNewConversionFromString(t *testing.T) {

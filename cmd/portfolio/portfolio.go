@@ -6,19 +6,11 @@ import (
 	"log"
 	"os"
 
-<<<<<<< HEAD:tools/portfolio/portfolio.go
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
+	"github.com/idoall/gocryptotrader/exchanges/asset"
 	"github.com/idoall/gocryptotrader/exchanges/bitfinex"
-	log "github.com/idoall/gocryptotrader/logger"
 	"github.com/idoall/gocryptotrader/portfolio"
-=======
-	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
-	"github.com/thrasher-corp/gocryptotrader/portfolio"
->>>>>>> upstrem/master:cmd/portfolio/portfolio.go
 )
 
 var (

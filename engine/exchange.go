@@ -304,16 +304,9 @@ func LoadExchange(name string, useWG bool, wg *sync.WaitGroup) error {
 // SetupExchanges sets up the exchanges used by the Bot
 func SetupExchanges() {
 	var wg sync.WaitGroup
-<<<<<<< HEAD:exchange.go
-
-	// 读取所有exchanges
-	for x := range bot.config.Exchanges {
-		exch := &bot.config.Exchanges[x]
-=======
 	exchanges := Bot.Config.GetAllExchangeConfigs()
 	for x := range exchanges {
 		exch := exchanges[x]
->>>>>>> upstrem/master:engine/exchange.go
 		if CheckExchangeExists(exch.Name) {
 			e := GetExchangeByName(exch.Name)
 			if e == nil {

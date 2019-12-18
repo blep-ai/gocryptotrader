@@ -7,29 +7,19 @@ import (
 	"sync"
 	"time"
 
-<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
+	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/exchanges/asset"
+	"github.com/idoall/gocryptotrader/exchanges/order"
 	"github.com/idoall/gocryptotrader/exchanges/orderbook"
+	"github.com/idoall/gocryptotrader/exchanges/protocol"
+	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/ticker"
 	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
+	"github.com/idoall/gocryptotrader/exchanges/withdraw"
 	log "github.com/idoall/gocryptotrader/logger"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
->>>>>>> upstrem/master
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -295,7 +285,7 @@ func (b *Bitmex) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (b *Bitmex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Price, error) {
-	var tickerPrice ticker.Price
+	tickerPrice := ticker.Price{}
 	tick, err := b.GetActiveInstruments(&GenericRequestParams{})
 	if err != nil {
 		return tickerPrice, err
@@ -306,7 +296,7 @@ func (b *Bitmex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 			if !pairs[i].Equal(tick[j].Symbol) {
 				continue
 			}
-			tickerPrice = ticker.Price{
+			tickerPriceNew := &ticker.Price{
 				Last:        tick[j].LastPrice,
 				High:        tick[j].HighPrice,
 				Low:         tick[j].LowPrice,
@@ -317,13 +307,14 @@ func (b *Bitmex) UpdateTicker(p currency.Pair, assetType asset.Item) (ticker.Pri
 				Pair:        tick[j].Symbol,
 				LastUpdated: tick[j].Timestamp,
 			}
-			err = ticker.ProcessTicker(b.Name, &tickerPrice, assetType)
+			err = ticker.ProcessTicker(b.Name, tickerPriceNew, assetType)
 			if err != nil {
 				log.Error(log.Ticker, err)
 			}
 		}
 	}
-	return ticker.GetTicker(b.Name, p, assetType)
+	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
+	return tickerNew, nil
 }
 
 // FetchTicker returns the ticker for a currency pair
@@ -346,7 +337,7 @@ func (b *Bitmex) FetchOrderbook(p currency.Pair, assetType asset.Item) (orderboo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbook.Base, error) {
-	var orderBook orderbook.Base
+	orderBook := orderbook.Base{}
 
 	orderbookNew, err := b.GetOrderbook(OrderBookGetL2Params{
 		Symbol: b.FormatExchangeCurrency(p, assetType).String(),
@@ -377,7 +368,8 @@ func (b *Bitmex) UpdateOrderbook(p currency.Pair, assetType asset.Item) (orderbo
 		return orderBook, err
 	}
 
-	return orderbook.Get(b.Name, p, assetType)
+	o, err := orderbook.Get(b.Name, p, assetType)
+	return o, err
 }
 
 // GetAccountInfo retrieves balances for all enabled currencies for the
@@ -566,47 +558,6 @@ func (b *Bitmex) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) 
 
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
-<<<<<<< HEAD
-func (b *Bitmex) GetActiveOrders(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	var orders []exchange.OrderDetail
-	// params := OrdersRequest{}
-	// params.Filter = "{\"open\":true}"
-
-	// resp, err := b.GetOrders(&params)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// for i := range resp {
-	// 	orderSide := orderSideMap[resp[i].Side]
-	// 	orderType := orderTypeMap[resp[i].OrdType]
-	// 	if orderType == "" {
-	// 		orderType = exchange.UnknownOrderType
-	// 	}
-
-	// 	orderDetail := exchange.OrderDetail{
-	// 		Price:     resp[i].Price,
-	// 		Amount:    float64(resp[i].OrderQty),
-	// 		Exchange:  b.Name,
-	// 		ID:        resp[i].OrderID,
-	// 		OrderSide: orderSide,
-	// 		OrderType: orderType,
-	// 		Status:    resp[i].OrdStatus,
-	// 		CurrencyPair: currency.NewPairWithDelimiter(resp[i].Symbol,
-	// 			resp[i].SettlCurrency,
-	// 			b.ConfigCurrencyPairFormat.Delimiter),
-	// 	}
-
-	// 	orders = append(orders, orderDetail)
-	// }
-
-	// exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	// exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	// exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-	// 	getOrdersRequest.EndTicks)
-	// exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
-
-=======
 func (b *Bitmex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var orders []order.Detail
 	params := OrdersRequest{}
@@ -618,8 +569,8 @@ func (b *Bitmex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 	}
 
 	for i := range resp {
-		orderSide := orderSideMap[resp[i].Side]
-		orderType := orderTypeMap[resp[i].OrdType]
+		orderSide := orderSideMap[1]
+		orderType := orderTypeMap[2]
 		if orderType == "" {
 			orderType = order.Unknown
 		}
@@ -644,51 +595,12 @@ func (b *Bitmex) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, e
 	order.FilterOrdersByType(&orders, req.OrderType)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	order.FilterOrdersByCurrencies(&orders, req.Currencies)
->>>>>>> upstrem/master
 	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
-<<<<<<< HEAD
-func (b *Bitmex) GetOrderHistory(getOrdersRequest *exchange.GetOrdersRequest) ([]exchange.OrderDetail, error) {
-	var orders []exchange.OrderDetail
-	// params := OrdersRequest{}
-	// resp, err := b.GetOrders(&params)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// for i := range resp {
-	// 	orderSide := orderSideMap[resp[i].Side]
-	// 	orderType := orderTypeMap[resp[i].OrdType]
-	// 	if orderType == "" {
-	// 		orderType = exchange.UnknownOrderType
-	// 	}
-
-	// 	orderDetail := exchange.OrderDetail{
-	// 		Price:     resp[i].Price,
-	// 		Amount:    float64(resp[i].OrderQty),
-	// 		Exchange:  b.Name,
-	// 		ID:        resp[i].OrderID,
-	// 		OrderSide: orderSide,
-	// 		OrderType: orderType,
-	// 		Status:    resp[i].OrdStatus,
-	// 		CurrencyPair: currency.NewPairWithDelimiter(resp[i].Symbol,
-	// 			resp[i].SettlCurrency,
-	// 			b.ConfigCurrencyPairFormat.Delimiter),
-	// 	}
-
-	// 	orders = append(orders, orderDetail)
-	// }
-
-	// exchange.FilterOrdersBySide(&orders, getOrdersRequest.OrderSide)
-	// exchange.FilterOrdersByType(&orders, getOrdersRequest.OrderType)
-	// exchange.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks, getOrdersRequest.EndTicks)
-	// exchange.FilterOrdersByCurrencies(&orders, getOrdersRequest.Currencies)
-
-=======
 func (b *Bitmex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
 	var orders []order.Detail
 	params := OrdersRequest{}
@@ -698,8 +610,8 @@ func (b *Bitmex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 	}
 
 	for i := range resp {
-		orderSide := orderSideMap[resp[i].Side]
-		orderType := orderTypeMap[resp[i].OrdType]
+		orderSide := orderSideMap[1]
+		orderType := orderTypeMap[2]
 		if orderType == "" {
 			orderType = order.Unknown
 		}
@@ -724,7 +636,6 @@ func (b *Bitmex) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, e
 	order.FilterOrdersByType(&orders, req.OrderType)
 	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
 	order.FilterOrdersByCurrencies(&orders, req.Currencies)
->>>>>>> upstrem/master
 	return orders, nil
 }
 

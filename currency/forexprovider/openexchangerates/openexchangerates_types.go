@@ -1,8 +1,8 @@
 package openexchangerates
 
 import (
-	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/idoall/gocryptotrader/currency/forexprovider/base"
+	"github.com/idoall/gocryptotrader/exchanges/request"
 )
 
 // These consts contain endpoint information

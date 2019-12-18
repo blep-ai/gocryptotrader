@@ -5,12 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-<<<<<<< HEAD
-	"github.com/idoall/gocryptotrader/common"
 	log "github.com/idoall/gocryptotrader/logger"
-=======
-	log "github.com/thrasher-corp/gocryptotrader/logger"
->>>>>>> upstrem/master
 )
 
 const (

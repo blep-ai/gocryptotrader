@@ -16,14 +16,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-<<<<<<< HEAD
-	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	log "github.com/idoall/gocryptotrader/logger"
-=======
-	"github.com/thrasher-corp/gocryptotrader/config"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
->>>>>>> upstrem/master
 )
 
 // New initialises the websocket struct
@@ -37,54 +31,10 @@ func New() *Websocket {
 	}
 }
 
-<<<<<<< HEAD
-// Setup 设置 websocket 的变量和连接
-func (w *Websocket) Setup(connector func() error,
-	subscriber func(channelToSubscribe WebsocketChannelSubscription) error,
-	unsubscriber func(channelToUnsubscribe WebsocketChannelSubscription) error,
-	exchangeName string,
-	wsEnabled,
-	verbose bool,
-	defaultURL,
-	runningURL string,
-	authenticatedWebsocketAPISupport bool) error {
-
-=======
 // Setup sets main variables for websocket connection
 func (w *Websocket) Setup(setupData *WebsocketSetup) error {
->>>>>>> upstrem/master
 	w.DataHandler = make(chan interface{}, 1)
 	w.TrafficAlert = make(chan struct{}, 1)
-<<<<<<< HEAD
-	w.verbose = verbose
-
-	// 将交易所的订阅、取消订阅方法传递到 websocket 中
-	w.SetChannelSubscriber(subscriber)
-	w.SetChannelUnsubscriber(unsubscriber)
-
-	// 设置  websocket 连接状态
-	err := w.SetWsStatusAndConnection(wsEnabled)
-	if err != nil {
-		return err
-	}
-
-	// 设置 websocket 的默认 URL
-	w.SetDefaultURL(defaultURL)
-
-	// 设置 websocket
-	w.SetConnector(connector)
-	w.SetWebsocketURL(runningURL)
-
-	// 设置交易所名称
-	w.SetExchangeName(exchangeName)
-
-	// 设置是否支持 websocket 认证
-	w.SetCanUseAuthenticatedEndpoints(authenticatedWebsocketAPISupport)
-
-	w.init = false
-	w.noConnectionCheckLimit = 5
-	w.reconnectionLimit = 10
-=======
 	w.verbose = setupData.Verbose
 	w.SetChannelSubscriber(setupData.Subscriber)
 	w.SetChannelUnsubscriber(setupData.UnSubscriber)
@@ -100,16 +50,11 @@ func (w *Websocket) Setup(setupData *WebsocketSetup) error {
 	if err != nil {
 		return err
 	}
->>>>>>> upstrem/master
 
 	return nil
 }
 
-<<<<<<< HEAD
-// Connect 使用包定义的连接初始化websocket连接
-=======
 // Connect initiates a websocket connection by using a package defined connection
->>>>>>> upstrem/master
 // function
 func (w *Websocket) Connect() error {
 	w.m.Lock()
@@ -118,17 +63,9 @@ func (w *Websocket) Connect() error {
 	if !w.IsEnabled() {
 		return errors.New(WebsocketNotEnabled)
 	}
-<<<<<<< HEAD
-
-	// 如果已经连接，那么断开连接
-	if w.connected {
-		w.connecting = false
-		return errors.New("exchange_websocket.go error - already connected, cannot connect again")
-=======
 	if w.IsConnecting() {
 		return fmt.Errorf("%v Websocket already attempting to connect",
 			w.exchangeName)
->>>>>>> upstrem/master
 	}
 	if w.IsConnected() {
 		return fmt.Errorf("%v Websocket already connected",
@@ -136,13 +73,7 @@ func (w *Websocket) Connect() error {
 	}
 	w.setConnectingStatus(true)
 	w.ShutdownC = make(chan struct{}, 1)
-<<<<<<< HEAD
-
-	// 默认第一次通过 SetWsStatusAndConnection 初始化进来时，err 是 nil
-	// 后面通过 Setup 设置后 会调用 Huobi交易所的 WsConnect() 方法，初始化 WebSocket 连接和订阅参数
-=======
 	w.ReadMessageErrors = make(chan error, 1)
->>>>>>> upstrem/master
 	err := w.connector()
 	if err != nil {
 		w.setConnectingStatus(false)
@@ -161,16 +92,10 @@ func (w *Websocket) Connect() error {
 	if !w.IsConnectionMonitorRunning() {
 		go w.connectionMonitor()
 	}
-<<<<<<< HEAD
-
-	//
-	go w.manageSubscriptions()
-=======
 	if w.features.Subscribe || w.features.Unsubscribe {
 		w.Wg.Add(1)
 		go w.manageSubscriptions()
 	}
->>>>>>> upstrem/master
 
 	return nil
 }
@@ -427,39 +352,6 @@ func (w *Websocket) GetWebsocketURL() string {
 	return w.runningURL
 }
 
-<<<<<<< HEAD
-// SetWsStatusAndConnection 如果启用了websocket，则设置 wsstatusandconnection
-// it will also connect/disconnect the websocket connection
-func (w *Websocket) SetWsStatusAndConnection(enabled bool) error {
-	w.m.Lock()
-	if w.enabled == enabled {
-		if w.init {
-			w.m.Unlock()
-			return nil
-		}
-		w.m.Unlock()
-		return fmt.Errorf("exchange_websocket.go error - already set as %t",
-			enabled)
-	}
-	w.enabled = enabled
-	if !w.init {
-		if enabled {
-			if w.connected {
-				w.m.Unlock()
-				return nil
-			}
-			w.m.Unlock()
-			// 建立 websocket 连接
-			return w.Connect()
-		}
-
-		if !w.connected {
-			w.m.Unlock()
-			return nil
-		}
-		w.m.Unlock()
-		return w.Shutdown()
-=======
 // Initialise verifies status and connects
 func (w *Websocket) Initialise() error {
 	if w.IsEnabled() {
@@ -468,7 +360,6 @@ func (w *Websocket) Initialise() error {
 		}
 		return fmt.Errorf("%v Websocket already initialised",
 			w.exchangeName)
->>>>>>> upstrem/master
 	}
 	w.setEnabled(w.enabled)
 	return nil
@@ -523,90 +414,6 @@ func (w *Websocket) GetName() string {
 	return w.exchangeName
 }
 
-<<<<<<< HEAD
-// GetFunctionality returns a functionality bitmask for the websocket
-// connection
-func (w *Websocket) GetFunctionality() uint32 {
-	return w.Functionality
-}
-
-// SupportsFunctionality 判断是否支持相关的调用方法
-func (w *Websocket) SupportsFunctionality(f uint32) bool {
-	return w.GetFunctionality()&f == f
-}
-
-// FormatFunctionality will return each of the websocket connection compatible
-// stream methods as a string
-func (w *Websocket) FormatFunctionality() string {
-	var functionality []string
-	for i := 0; i < 32; i++ {
-		var check uint32 = 1 << uint32(i)
-		if w.GetFunctionality()&check != 0 {
-			switch check {
-			case WebsocketTickerSupported:
-				functionality = append(functionality, WebsocketTickerSupportedText)
-
-			case WebsocketOrderbookSupported:
-				functionality = append(functionality, WebsocketOrderbookSupportedText)
-
-			case WebsocketKlineSupported:
-				functionality = append(functionality, WebsocketKlineSupportedText)
-
-			case WebsocketTradeDataSupported:
-				functionality = append(functionality, WebsocketTradeDataSupportedText)
-
-			case WebsocketAccountSupported:
-				functionality = append(functionality, WebsocketAccountSupportedText)
-
-			case WebsocketAllowsRequests:
-				functionality = append(functionality, WebsocketAllowsRequestsText)
-
-			case WebsocketSubscribeSupported:
-				functionality = append(functionality, WebsocketSubscribeSupportedText)
-
-			case WebsocketUnsubscribeSupported:
-				functionality = append(functionality, WebsocketUnsubscribeSupportedText)
-
-			case WebsocketAuthenticatedEndpointsSupported:
-				functionality = append(functionality, WebsocketAuthenticatedEndpointsSupportedText)
-
-			case WebsocketAccountDataSupported:
-				functionality = append(functionality, WebsocketAccountDataSupportedText)
-
-			case WebsocketSubmitOrderSupported:
-				functionality = append(functionality, WebsocketSubmitOrderSupportedText)
-
-			case WebsocketCancelOrderSupported:
-				functionality = append(functionality, WebsocketCancelOrderSupportedText)
-
-			case WebsocketWithdrawSupported:
-				functionality = append(functionality, WebsocketWithdrawSupportedText)
-
-			case WebsocketMessageCorrelationSupported:
-				functionality = append(functionality, WebsocketMessageCorrelationSupportedText)
-
-			case WebsocketSequenceNumberSupported:
-				functionality = append(functionality, WebsocketSequenceNumberSupportedText)
-
-			case WebsocketDeadMansSwitchSupported:
-				functionality = append(functionality, WebsocketDeadMansSwitchSupportedText)
-
-			default:
-				functionality = append(functionality,
-					fmt.Sprintf("%s[1<<%v]", UnknownWebsocketFunctionality, i))
-			}
-		}
-	}
-
-	if len(functionality) > 0 {
-		return strings.Join(functionality, " & ")
-	}
-
-	return NoWebsocketSupportText
-}
-
-=======
->>>>>>> upstrem/master
 // SetChannelSubscriber sets the function to use the base subscribe func
 func (w *Websocket) SetChannelSubscriber(subscriber func(channelToSubscribe WebsocketChannelSubscription) error) {
 	w.channelSubscriber = subscriber
@@ -619,13 +426,7 @@ func (w *Websocket) SetChannelUnsubscriber(unsubscriber func(channelToUnsubscrib
 
 // ManageSubscriptions 管理订阅信息
 func (w *Websocket) manageSubscriptions() {
-<<<<<<< HEAD
-
-	// 判断是否支持订阅和取消订阅
-	if !w.SupportsFunctionality(WebsocketSubscribeSupported) && !w.SupportsFunctionality(WebsocketUnsubscribeSupported) {
-=======
 	if !w.features.Subscribe && !w.features.Unsubscribe {
->>>>>>> upstrem/master
 		w.DataHandler <- fmt.Errorf("%v does not support channel subscriptions, exiting ManageSubscriptions()", w.exchangeName)
 		return
 	}
@@ -676,18 +477,11 @@ func (w *Websocket) manageSubscriptions() {
 	}
 }
 
-<<<<<<< HEAD
-// subscribeToChannels 发布订阅到频道
-func (w *Websocket) subscribeToChannels() error {
-	w.subscriptionLock.Lock()
-	defer w.subscriptionLock.Unlock()
-=======
 // appendSubscribedChannels compares channelsToSubscribe to subscribedChannels
 // and subscribes to any channels not present in subscribedChannels
 func (w *Websocket) appendSubscribedChannels() error {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
->>>>>>> upstrem/master
 	for i := 0; i < len(w.channelsToSubscribe); i++ {
 		// 判断要 订阅的数据 和 已订阅的数 是否一致
 		channelIsSubscribed := false
@@ -701,12 +495,7 @@ func (w *Websocket) appendSubscribedChannels() error {
 		// 第一次进入时 channelIsSubscribed is false
 		if !channelIsSubscribed {
 			if w.verbose {
-<<<<<<< HEAD
-				// [DEBUG]: 2019/11/14 16:05:51 Huobi Subscribing to market.btcusdt.kline.1min BTCUSDT
-				log.Debugf("%v Subscribing to %v %v", w.exchangeName, w.channelsToSubscribe[i].Channel, w.channelsToSubscribe[i].Currency.String())
-=======
 				log.Debugf(log.WebsocketMgr, "%v Subscribing to %v %v", w.exchangeName, w.channelsToSubscribe[i].Channel, w.channelsToSubscribe[i].Currency.String())
->>>>>>> upstrem/master
 			}
 
 			// {Channel:market.nasusdt.kline.1min Currency:NASUSDT Params:map[]}

@@ -6,12 +6,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
-	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
-	log "github.com/thrasher-corp/gocryptotrader/logger"
-	"github.com/thrasher-corp/gocryptotrader/portfolio"
+	"github.com/idoall/gocryptotrader/currency"
+	"github.com/idoall/gocryptotrader/currency/forexprovider/base"
+	"github.com/idoall/gocryptotrader/database"
+	"github.com/idoall/gocryptotrader/exchanges/protocol"
+	log "github.com/idoall/gocryptotrader/logger"
+	"github.com/idoall/gocryptotrader/portfolio"
 )
 
 // Constants declared here are filename strings and test strings

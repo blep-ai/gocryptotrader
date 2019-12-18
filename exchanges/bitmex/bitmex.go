@@ -9,24 +9,13 @@ import (
 	"strings"
 	"time"
 
-<<<<<<< HEAD
-	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/common/crypto"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/request"
 	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
-	log "github.com/idoall/gocryptotrader/logger"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
->>>>>>> upstrem/master
 )
 
 // Bitmex is the overarching type across this package
-// 资金时间戳：UTC 4:00（北京时间 12:00）、UTC 12:00（北京时间 20:00）和 UTC 20:00（北京时间 04:00）
 type Bitmex struct {
 	exchange.Base
 	WebsocketConn *wshandler.WebsocketConnection
@@ -118,113 +107,7 @@ const (
 	ContractUpsideProfit
 )
 
-<<<<<<< HEAD
-// SetDefaults sets the basic defaults for Bitmex
-func (b *Bitmex) SetDefaults() {
-	b.Name = "Bitmex"
-	b.Enabled = false
-	b.Verbose = false
-	b.RESTPollingDelay = 10
-	b.APIWithdrawPermissions = exchange.AutoWithdrawCryptoWithAPIPermission |
-		exchange.WithdrawCryptoWithEmail |
-		exchange.WithdrawCryptoWith2FA |
-		exchange.NoFiatWithdrawals
-	b.RequestCurrencyPairFormat.Delimiter = ""
-	b.RequestCurrencyPairFormat.Uppercase = true
-	// b.ConfigCurrencyPairFormat.Delimiter = ""
-	// b.ConfigCurrencyPairFormat.Uppercase = true
-	// b.AssetTypes = []string{ticker.Spot}
-	b.Requester = request.New(b.Name,
-		request.NewRateLimit(time.Second, bitmexAuthRate),
-		request.NewRateLimit(time.Second, bitmexUnauthRate),
-		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-	b.APIUrlDefault = bitmexAPIURL
-	b.APIUrl = b.APIUrlDefault
-	b.SupportsAutoPairUpdating = true
-	b.Websocket = wshandler.New()
-	b.Websocket.Functionality = wshandler.WebsocketTradeDataSupported |
-		wshandler.WebsocketOrderbookSupported |
-		wshandler.WebsocketSubscribeSupported |
-		wshandler.WebsocketUnsubscribeSupported |
-		wshandler.WebsocketAuthenticatedEndpointsSupported |
-		wshandler.WebsocketAccountDataSupported |
-		wshandler.WebsocketDeadMansSwitchSupported
-	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
-
-// Setup takes in the supplied exchange configuration details and sets params
-func (b *Bitmex) Setup(exch *config.ExchangeConfig) {
-	if !exch.Enabled {
-		b.SetEnabled(false)
-	} else {
-		b.Enabled = true
-		b.AuthenticatedAPISupport = exch.AuthenticatedAPISupport
-		b.AuthenticatedWebsocketAPISupport = exch.AuthenticatedWebsocketAPISupport
-		b.SetAPIKeys(exch.APIKey, exch.APISecret, "", false)
-		b.RESTPollingDelay = exch.RESTPollingDelay
-		b.Verbose = exch.Verbose
-		b.HTTPDebugging = exch.HTTPDebugging
-		b.Websocket.SetWsStatusAndConnection(exch.Websocket)
-		b.BaseCurrencies = exch.BaseCurrencies
-		b.AvailablePairs = exch.AvailablePairs
-		b.EnabledPairs = exch.EnabledPairs
-		var err error
-		// err := b.SetCurrencyPairFormat()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		// err = b.SetAssetTypes()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		// err = b.SetAutoPairDefaults()
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-		err = b.SetAPIURL(exch)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.SetClientProxyAddress(exch.ProxyAddress)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = b.Websocket.Setup(b.WsConnector,
-			b.Subscribe,
-			b.Unsubscribe,
-			exch.Name,
-			exch.Websocket,
-			exch.Verbose,
-			bitmexWSURL,
-			exch.WebsocketURL,
-			exch.AuthenticatedWebsocketAPISupport)
-		if err != nil {
-			log.Fatal(err)
-		}
-		b.WebsocketConn = &wshandler.WebsocketConnection{
-			ExchangeName:         b.Name,
-			URL:                  b.Websocket.GetWebsocketURL(),
-			ProxyURL:             b.Websocket.GetProxyAddress(),
-			Verbose:              b.Verbose,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
-		b.Websocket.Orderbook.Setup(
-			exch.WebsocketOrderbookBufferLimit,
-			true,
-			false,
-			false,
-			true,
-			exch.Name)
-	}
-}
-
-=======
->>>>>>> upstrem/master
 // GetAnnouncement returns the general announcements from Bitmex
-// 获取公告
 func (b *Bitmex) GetAnnouncement() ([]Announcement, error) {
 	var announcement []Announcement
 
@@ -234,7 +117,6 @@ func (b *Bitmex) GetAnnouncement() ([]Announcement, error) {
 }
 
 // GetUrgentAnnouncement returns an urgent announcement for your account
-// 获取和用户相关的公告
 func (b *Bitmex) GetUrgentAnnouncement() ([]Announcement, error) {
 	var announcement []Announcement
 
@@ -245,7 +127,6 @@ func (b *Bitmex) GetUrgentAnnouncement() ([]Announcement, error) {
 }
 
 // GetAPIKeys returns the APIkeys from bitmex
-// 获取用户创建的API
 func (b *Bitmex) GetAPIKeys() ([]APIKey, error) {
 	var keys []APIKey
 
@@ -303,7 +184,6 @@ func (b *Bitmex) SendTrollboxMessage(params ChatSendParams) ([]Chat, error) {
 }
 
 // GetTrollboxChannels the channels from the the bitmex trollbox
-// response: [{"id":1,"name":"English"},{"id":2,"name":"中文"},{"id":3,"name":"Русский"},{"id":4,"name":"한국어"},{"id":5,"name":"日本語"},{"id":6,"name":"Español"},{"id":7,"name":"Français"}]
 func (b *Bitmex) GetTrollboxChannels() ([]ChatChannel, error) {
 	var channels []ChatChannel
 
@@ -333,7 +213,6 @@ func (b *Bitmex) GetAccountExecutions(params *GenericRequestParams) ([]Execution
 
 // GetAccountExecutionTradeHistory returns all balance-affecting executions.
 // This includes each trade, insurance charge, and settlement.
-// 获取个人中心的 交易历史 所有订单的信息，包括每笔交易，保险费和结算
 func (b *Bitmex) GetAccountExecutionTradeHistory(params *GenericRequestParams) ([]Execution, error) {
 	var tradeHistory []Execution
 
@@ -446,7 +325,6 @@ func (b *Bitmex) GetCurrentNotifications() ([]Notification, error) {
 }
 
 // GetOrders returns all the orders, open and closed
-// 查看订单信息
 func (b *Bitmex) GetOrders(params *OrdersRequest) ([]Order, error) {
 	var orders []Order
 	return orders, b.SendAuthenticatedHTTPRequest(http.MethodGet,
@@ -456,7 +334,6 @@ func (b *Bitmex) GetOrders(params *OrdersRequest) ([]Order, error) {
 }
 
 // AmendOrder amends the quantity or price of an open order
-// 修改订单的信息
 func (b *Bitmex) AmendOrder(params *OrderAmendParams) (Order, error) {
 	var order Order
 
@@ -467,7 +344,6 @@ func (b *Bitmex) AmendOrder(params *OrderAmendParams) (Order, error) {
 }
 
 // CreateOrder creates a new order
-//添加一个订单
 func (b *Bitmex) CreateOrder(params *OrderNewParams) (Order, error) {
 	var orderInfo Order
 
@@ -479,7 +355,6 @@ func (b *Bitmex) CreateOrder(params *OrderNewParams) (Order, error) {
 
 // CancelOrders cancels one or a batch of orders on the exchange and returns
 // a cancelled order list
-// 取消一个订单
 func (b *Bitmex) CancelOrders(params *OrderCancelParams) ([]Order, error) {
 	var cancelledOrders []Order
 
@@ -500,7 +375,6 @@ func (b *Bitmex) CancelAllExistingOrders(params OrderCancelAllParams) ([]Order, 
 }
 
 // AmendBulkOrders amends multiple orders for the same symbol
-// 修改多个订单
 func (b *Bitmex) AmendBulkOrders(params OrderAmendBulkParams) ([]Order, error) {
 	var amendedOrders []Order
 
@@ -511,7 +385,6 @@ func (b *Bitmex) AmendBulkOrders(params OrderAmendBulkParams) ([]Order, error) {
 }
 
 // CreateBulkOrders creates multiple orders for the same symbol
-// 批量创建新订单
 func (b *Bitmex) CreateBulkOrders(params OrderNewBulkParams) ([]Order, error) {
 	var orders []Order
 
@@ -532,7 +405,6 @@ func (b *Bitmex) CancelAllOrdersAfterTime(params OrderCancelAllAfterParams) ([]O
 }
 
 // ClosePosition closes a position WARNING deprecated use /order endpoint
-// 关闭所有未结订单
 func (b *Bitmex) ClosePosition(params OrderClosePositionParams) ([]Order, error) {
 	var closedPositions []Order
 
@@ -552,7 +424,6 @@ func (b *Bitmex) GetOrderbook(params OrderBookGetL2Params) ([]OrderBookL2, error
 }
 
 // GetPositions returns positions
-// 查看持仓信息
 func (b *Bitmex) GetPositions(params PositionGetParams) ([]Position, error) {
 	var positions []Position
 
@@ -573,7 +444,6 @@ func (b *Bitmex) IsolatePosition(params PositionIsolateMarginParams) (Position, 
 }
 
 // LeveragePosition chooses leverage for a position
-// 使用杠杆，值在0.01-100之间
 func (b *Bitmex) LeveragePosition(params PositionUpdateLeverageParams) (Position, error) {
 	var position Position
 
@@ -594,7 +464,6 @@ func (b *Bitmex) UpdateRiskLimit(params PositionUpdateRiskLimitParams) (Position
 }
 
 // TransferMargin transfers equity in or out of a position
-// 将资产转入或转出头寸
 func (b *Bitmex) TransferMargin(params PositionTransferIsolatedMarginParams) (Position, error) {
 	var position Position
 
@@ -605,7 +474,6 @@ func (b *Bitmex) TransferMargin(params PositionTransferIsolatedMarginParams) (Po
 }
 
 // GetQuotes returns quotations
-// 获取买或卖的快照
 func (b *Bitmex) GetQuotes(params *GenericRequestParams) ([]Quote, error) {
 	var quotations []Quote
 
@@ -654,7 +522,6 @@ func (b *Bitmex) GetStatSummary() ([]StatsUSD, error) {
 }
 
 // GetTrade returns executed trades on the desk
-// 最新成交的订单,Reverse为true获取的是倒排序
 func (b *Bitmex) GetTrade(params *GenericRequestParams) ([]Trade, error) {
 	var trade []Trade
 
@@ -662,9 +529,8 @@ func (b *Bitmex) GetTrade(params *GenericRequestParams) ([]Trade, error) {
 }
 
 // GetPreviousTrades previous trade history in time buckets
-// 获取K线
-func (b *Bitmex) GetPreviousTrades(params *TradeGetBucketedParams) ([]TradeBucket, error) {
-	var trade []TradeBucket
+func (b *Bitmex) GetPreviousTrades(params *TradeGetBucketedParams) ([]Trade, error) {
+	var trade []Trade
 
 	return trade, b.SendHTTPRequest(bitmexEndpointTradeBucketed,
 		params,
@@ -672,7 +538,6 @@ func (b *Bitmex) GetPreviousTrades(params *TradeGetBucketedParams) ([]TradeBucke
 }
 
 // GetUserInfo returns your user information
-// 获取用户信息
 func (b *Bitmex) GetUserInfo() (User, error) {
 	var userInfo User
 
@@ -683,7 +548,6 @@ func (b *Bitmex) GetUserInfo() (User, error) {
 }
 
 // UpdateUserInfo updates user information
-// 修改用户信息
 func (b *Bitmex) UpdateUserInfo(params *UserUpdateParams) (User, error) {
 	var userInfo User
 
@@ -704,7 +568,6 @@ func (b *Bitmex) GetAffiliateStatus() (AffiliateStatus, error) {
 }
 
 // CancelWithdraw cancels a current withdrawal
-// 取消提款
 func (b *Bitmex) CancelWithdraw(token string) (TransactionInfo, error) {
 	var info TransactionInfo
 
@@ -725,7 +588,6 @@ func (b *Bitmex) CheckReferalCode(referralCode string) (float64, error) {
 }
 
 // GetUserCommision returns your account's commission status.
-// 查看帐户的交易费用
 func (b *Bitmex) GetUserCommision() (UserCommission, error) {
 	var commissionInfo UserCommission
 
@@ -872,7 +734,6 @@ func (b *Bitmex) UserRequestWithdrawal(params UserRequestWithdrawalParams) (Tran
 }
 
 // GetWalletInfo returns user wallet information
-// 获取用户的钱包信息
 func (b *Bitmex) GetWalletInfo(currency string) (WalletInfo, error) {
 	var info WalletInfo
 
@@ -893,7 +754,6 @@ func (b *Bitmex) GetWalletHistory(currency string) ([]TransactionInfo, error) {
 }
 
 // GetWalletSummary returns user wallet summary
-// 汇总钱包的取款、提款PNL信息
 func (b *Bitmex) GetWalletSummary(currency string) ([]TransactionInfo, error) {
 	var info []TransactionInfo
 
@@ -906,16 +766,10 @@ func (b *Bitmex) GetWalletSummary(currency string) ([]TransactionInfo, error) {
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (b *Bitmex) SendHTTPRequest(path string, params Parameter, result interface{}) error {
 	var respCheck interface{}
-<<<<<<< HEAD
-	path = b.APIUrl + path
-
-=======
 	path = b.API.Endpoints.URL + path
->>>>>>> upstrem/master
 	if params != nil {
 		if !params.IsNil() {
 			encodedPath, err := params.ToURLVals(path)
-
 			if err != nil {
 				return err
 			}
@@ -1007,28 +861,19 @@ func (b *Bitmex) SendAuthenticatedHTTPRequest(verb, path string, params Paramete
 
 // CaptureError little hack that captures an error
 func (b *Bitmex) CaptureError(resp, reType interface{}) error {
-	// var Error RequestError
+	var Error RequestError
 
 	marshalled, err := json.Marshal(resp)
 	if err != nil {
 		return err
 	}
 
-<<<<<<< HEAD
-	// err = common.JSONDecode(marshalled, &Error)
-	// if err == nil {
-	// 	return fmt.Errorf("bitmex error %s: %s",
-	// 		Error.Error.Name,
-	// 		Error.Error.Message)
-	// }
-=======
 	err = json.Unmarshal(marshalled, &Error)
 	if err == nil {
 		return fmt.Errorf("bitmex error %s: %s",
 			Error.Error.Name,
 			Error.Error.Message)
 	}
->>>>>>> upstrem/master
 
 	return json.Unmarshal(marshalled, reType)
 }

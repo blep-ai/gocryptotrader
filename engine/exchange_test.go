@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/idoall/gocryptotrader/config"
 )
 
 var testSetup = false

@@ -13,12 +13,8 @@ import (
 	"strings"
 	"sync"
 
-<<<<<<< HEAD
-	"github.com/idoall/gocryptotrader/common"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/common/file"
->>>>>>> upstrem/master
+	"github.com/idoall/gocryptotrader/common/crypto"
+	"github.com/idoall/gocryptotrader/common/file"
 )
 
 // HTTPResponse defines expected response from the end point including request

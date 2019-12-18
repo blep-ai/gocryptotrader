@@ -5,14 +5,9 @@ import (
 	"os"
 	"testing"
 
-<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
-=======
-	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
->>>>>>> upstrem/master
+	"github.com/idoall/gocryptotrader/exchanges/order"
 )
 
 // Please supply your own keys here for due diligence testing

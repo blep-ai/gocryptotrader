@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/database"
-	"github.com/thrasher-corp/gocryptotrader/database/drivers"
-	"github.com/thrasher-corp/gocryptotrader/database/repository"
-	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
+	"github.com/idoall/gocryptotrader/database"
+	"github.com/idoall/gocryptotrader/database/drivers"
+	"github.com/idoall/gocryptotrader/database/repository"
+	"github.com/idoall/gocryptotrader/database/repository/audit"
 	"github.com/thrasher-corp/goose"
 )
 

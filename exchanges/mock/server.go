@@ -13,13 +13,9 @@ import (
 	"strconv"
 	"strings"
 
-<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/crypto"
-	"github.com/thrasher-corp/gocryptotrader/common/file"
->>>>>>> upstrem/master
+	"github.com/idoall/gocryptotrader/common/crypto"
+	"github.com/idoall/gocryptotrader/common/file"
 )
 
 // DefaultDirectory defines the main mock directory

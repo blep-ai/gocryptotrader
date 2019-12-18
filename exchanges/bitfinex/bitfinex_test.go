@@ -1,11 +1,8 @@
 package bitfinex
 
 import (
-<<<<<<< HEAD
 	"fmt"
-=======
 	"log"
->>>>>>> upstrem/master
 	"net/http"
 	"net/url"
 	"os"
@@ -14,23 +11,14 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-<<<<<<< HEAD
 	"github.com/idoall/gocryptotrader/common"
 	"github.com/idoall/gocryptotrader/config"
 	"github.com/idoall/gocryptotrader/currency"
 	exchange "github.com/idoall/gocryptotrader/exchanges"
+	"github.com/idoall/gocryptotrader/exchanges/order"
 	"github.com/idoall/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
-=======
-	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/withdraw"
->>>>>>> upstrem/master
+	"github.com/idoall/gocryptotrader/exchanges/withdraw"
 )
 
 // Please supply your own keys here to do better tests

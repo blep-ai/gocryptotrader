@@ -7,20 +7,6 @@ import (
 	"github.com/idoall/gocryptotrader/currency"
 )
 
-<<<<<<< HEAD
-// SpotNewOrderRequestParamsType 交易类型
-type SpotNewOrderRequestParamsType string
-
-var (
-	// SpotNewOrderRequestParamsTypeBuy 买
-	SpotNewOrderRequestParamsTypeBuy = SpotNewOrderRequestParamsType("buy")
-
-	// SpotNewOrderRequestParamsTypeSell 卖
-	SpotNewOrderRequestParamsTypeSell = SpotNewOrderRequestParamsType("sell")
-)
-
-=======
->>>>>>> upstrem/master
 // TimeInterval Interval represents interval enum.
 type TimeInterval int
 
@@ -123,17 +109,10 @@ type Orderbook struct {
 
 // SpotNewOrderRequestParams 下单买入/卖出请求参数
 type SpotNewOrderRequestParams struct {
-<<<<<<< HEAD
-	Amount float64                       `json:"amount"` // 下单数量
-	Price  float64                       `json:"price"`  // 下单价格
-	Symbol string                        `json:"symbol"` // 交易对, btc_usdt, eth_btc......
-	Type   SpotNewOrderRequestParamsType `json:"type"`   // 订单类型,
-=======
 	Amount float64 `json:"amount"` // Order quantity
 	Price  float64 `json:"price"`  // Order price
 	Symbol string  `json:"symbol"` // Trading pair; btc_usdt, eth_btc......
 	Type   string  `json:"type"`   // Order type (buy or sell),
->>>>>>> upstrem/master
 }
 
 // SpotNewOrderResponse 下单买入/卖出返回的类型

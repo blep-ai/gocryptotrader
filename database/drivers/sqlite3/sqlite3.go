@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 
 	// import sqlite3 driver
+	"github.com/idoall/gocryptotrader/database"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/thrasher-corp/gocryptotrader/database"
 )
 
 // Connect opens a connection to sqlite database and returns a pointer to database.DB
