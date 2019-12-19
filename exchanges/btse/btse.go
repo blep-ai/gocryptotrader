@@ -10,11 +10,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/idoall/gocryptotrader/common/crypto"
-	"github.com/idoall/gocryptotrader/currency"
-	exchange "github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
-	log "github.com/idoall/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 // BTSE is the overarching type across this package

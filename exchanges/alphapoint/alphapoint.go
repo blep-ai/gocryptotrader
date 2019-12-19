@@ -10,9 +10,9 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
-	"github.com/idoall/gocryptotrader/common/crypto"
-	exchange "github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 const (

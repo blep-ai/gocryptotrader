@@ -1,7 +1,7 @@
 package okcoin
 
 import (
-	"github.com/idoall/gocryptotrader/exchanges/okgroup"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
 )
 
 const (

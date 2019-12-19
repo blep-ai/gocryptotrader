@@ -13,13 +13,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/core"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/core"
 )
 
 const (
 	// DefaultRepo is the main example repository
-	DefaultRepo = "https://api.github.com/repos/idoall/gocryptotrader"
+	DefaultRepo = "https://api.github.com/repos/thrasher-corp/gocryptotrader"
 
 	// GithubAPIEndpoint allows the program to query your repository
 	// contributor list
@@ -167,7 +167,7 @@ func main() {
 
 		// Github API missing contributors
 		contributors = append(contributors, []Contributor{
-			// idoall's contributors were forked and merged, so his contributions
+			// thrasher-corp's contributors were forked and merged, so his contributions
 			// aren't automatically retrievable
 			{
 				Login:         "idoall",

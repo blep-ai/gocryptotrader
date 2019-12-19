@@ -1,5 +1,5 @@
 LDFLAGS = -ldflags "-w -s"
-GCTPKG = github.com/idoall/gocryptotrader
+GCTPKG = github.com/thrasher-corp/gocryptotrader
 LINTPKG = github.com/golangci/golangci-lint/cmd/golangci-lint@v1.20.1
 LINTBIN = $(GOPATH)/bin/golangci-lint
 GCTLISTENPORT=9050

@@ -3,7 +3,7 @@ package currency
 import (
 	"errors"
 
-	"github.com/idoall/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // GetAssetTypes returns a list of stored asset types

@@ -6,9 +6,9 @@ import (
 	"net/smtp"
 	"strings"
 
-	"github.com/idoall/gocryptotrader/communications/base"
-	"github.com/idoall/gocryptotrader/config"
-	log "github.com/idoall/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/communications/base"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const (

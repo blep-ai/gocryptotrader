@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	log "github.com/idoall/gocryptotrader/logger"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 )
 
 const (

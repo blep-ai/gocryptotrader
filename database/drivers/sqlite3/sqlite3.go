@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 
 	// import sqlite3 driver
-	"github.com/idoall/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database"
 	_ "github.com/mattn/go-sqlite3"
 )
 

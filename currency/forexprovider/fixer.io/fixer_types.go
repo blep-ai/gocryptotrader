@@ -1,8 +1,8 @@
 package fixer
 
 import (
-	"github.com/idoall/gocryptotrader/currency/forexprovider/base"
-	"github.com/idoall/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 const (

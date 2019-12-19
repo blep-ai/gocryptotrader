@@ -6,7 +6,7 @@ import (
 	"time"
 
 	// import go libpq driver package
-	"github.com/idoall/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database"
 	_ "github.com/lib/pq"
 )
 

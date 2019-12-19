@@ -6,10 +6,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/idoall/gocryptotrader/database"
-	dbpsql "github.com/idoall/gocryptotrader/database/drivers/postgres"
-	dbsqlite3 "github.com/idoall/gocryptotrader/database/drivers/sqlite3"
-	log "github.com/idoall/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	dbpsql "github.com/thrasher-corp/gocryptotrader/database/drivers/postgres"
+	dbsqlite3 "github.com/thrasher-corp/gocryptotrader/database/drivers/sqlite3"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/sqlboiler/boil"
 )
 

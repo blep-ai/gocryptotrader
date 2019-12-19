@@ -5,13 +5,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/currency"
-	"github.com/idoall/gocryptotrader/exchanges/asset"
-	"github.com/idoall/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// Please sgithub.com/idoallhere to do better tests
+// Please sgithub.com/thrasher-corphere to do better tests
 const (
 	apiKey                  = ""
 	apiSecret               = ""

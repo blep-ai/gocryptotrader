@@ -9,8 +9,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 var mockTests = false

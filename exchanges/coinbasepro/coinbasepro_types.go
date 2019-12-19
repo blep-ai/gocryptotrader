@@ -3,7 +3,7 @@ package coinbasepro
 import (
 	"time"
 
-	"github.com/idoall/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 // Product holds product information

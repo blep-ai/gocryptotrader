@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/idoall/gocryptotrader/common/timedmutex"
-	"github.com/idoall/gocryptotrader/exchanges/nonce"
+	"github.com/thrasher-corp/gocryptotrader/common/timedmutex"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 )
 
 var supportedMethods = []string{http.MethodGet, http.MethodPost, http.MethodHead,

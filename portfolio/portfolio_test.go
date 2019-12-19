@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/idoall/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 func TestGetEthereumBalance(t *testing.T) {

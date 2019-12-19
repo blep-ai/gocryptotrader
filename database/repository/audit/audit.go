@@ -5,11 +5,11 @@ import (
 	"errors"
 	"time"
 
-	"github.com/idoall/gocryptotrader/database"
-	modelPSQL "github.com/idoall/gocryptotrader/database/models/postgres"
-	modelSQLite "github.com/idoall/gocryptotrader/database/models/sqlite3"
-	"github.com/idoall/gocryptotrader/database/repository"
-	log "github.com/idoall/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/database"
+	modelPSQL "github.com/thrasher-corp/gocryptotrader/database/models/postgres"
+	modelSQLite "github.com/thrasher-corp/gocryptotrader/database/models/sqlite3"
+	"github.com/thrasher-corp/gocryptotrader/database/repository"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
 	"github.com/thrasher-corp/sqlboiler/boil"
 	"github.com/thrasher-corp/sqlboiler/queries/qm"
 )

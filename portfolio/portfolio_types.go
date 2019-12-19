@@ -1,6 +1,6 @@
 package portfolio
 
-import "github.com/idoall/gocryptotrader/currency"
+import "github.com/thrasher-corp/gocryptotrader/currency"
 
 // Base holds the portfolio base addresses
 type Base struct {

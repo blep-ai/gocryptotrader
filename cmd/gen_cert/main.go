@@ -14,7 +14,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/idoall/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 )
 
 func main() {

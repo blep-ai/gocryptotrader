@@ -7,13 +7,13 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/core"
-	"github.com/idoall/gocryptotrader/dispatch"
-	"github.com/idoall/gocryptotrader/engine"
-	"github.com/idoall/gocryptotrader/exchanges/request"
-	log "github.com/idoall/gocryptotrader/logger"
-	"github.com/idoall/gocryptotrader/signaler"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/core"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/signaler"
 )
 
 func main() {

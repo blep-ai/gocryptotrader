@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"log"
 
-	"github.com/idoall/gocryptotrader/common/file"
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
 // EncryptOrDecrypt returns a string from a boolean

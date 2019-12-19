@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/idoall/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 )
 
 // Write implementation to satisfy io.Writer handles length check and rotation

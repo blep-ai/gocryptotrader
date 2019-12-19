@@ -1,8 +1,8 @@
 package alphapoint
 
 import (
-	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 // GetKlines  checks and returns a requested kline if it exists

@@ -3,7 +3,7 @@ package wex
 import (
 	"testing"
 
-	"github.com/idoall/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
 var w WEX

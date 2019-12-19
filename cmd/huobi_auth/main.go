@@ -13,7 +13,7 @@ import (
 	"io/ioutil"
 	"log"
 
-	"github.com/idoall/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/common/file"
 )
 
 func encodePEM(privKey *ecdsa.PrivateKey, pubKey bool) ([]byte, error) {

@@ -15,10 +15,10 @@ import (
 	"strconv"
 	"strings"
 
-	gctcrypto "github.com/idoall/gocryptotrader/common/crypto"
-	exchange "github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/order"
-	"github.com/idoall/gocryptotrader/exchanges/websocket/wshandler"
+	gctcrypto "github.com/thrasher-corp/gocryptotrader/common/crypto"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/websocket/wshandler"
 )
 
 // Lbank is the overarching type across this package

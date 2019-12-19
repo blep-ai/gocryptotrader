@@ -1,29 +1,10 @@
-基于项目 [thrasher-/gocryptotrader](https://github.com/idoall/gocryptotrader) 做的个性化修改
+<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
-## 修改的内容
-
-+ 简单一些操作
-+ 修复火币在 Post 时的bug，同时增加 HuobiHadax 的支持
-+ 修复 Binance 获取用户信息的bug,增加 Binance 取消订单的方法，获取订单状态，获取所有打开的状态以及所有订单
-+ 增加 Gateio 交易所的支持，支持获取K线、支持的交易对、交易市场参数、买/卖订单、取消订单
-+ OKEX 币币交易:增加获取用户信息，下订单，取消订单
-+ 修复 Bitfinex 的 GetAccountInfo 方法
-+ 增加 ZB 交易所的部分功能支持
-
-<img src="https://github.com/idoall/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
-
-[![Build Status](https://travis-ci.com/thrasher-/gocryptotrader.svg?branch=master)](https://travis-ci.com/thrasher-/gocryptotrader)
-[![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/idoall/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/idoall/gocryptotrader?status.svg)](https://godoc.org/github.com/idoall/gocryptotrader)
-[![Coverage Status](http://codecov.io/github/thrasher-/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-/gocryptotrader?branch=master)
-[![Go Report Card](https://goreportcard.com/badge/github.com/idoall/gocryptotrader)](https://goreportcard.com/report/github.com/idoall/gocryptotrader)
-<img src="https://github.com/idoall/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
-
-[![Build Status](https://travis-ci.com/idoall/gocryptotrader.svg?branch=master)](https://travis-ci.com/idoall/gocryptotrader)
-[![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/idoall/gocryptotrader/blob/master/LICENSE)
-[![GoDoc](https://godoc.org/github.com/idoall/gocryptotrader?status.svg)](https://godoc.org/github.com/idoall/gocryptotrader)
-[![Coverage Status](http://codecov.io/github/idoall/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/idoall/gocryptotrader?branch=master)
-[![Go Report Card](https://goreportcard.com/badge/github.com/idoall/gocryptotrader)](https://goreportcard.com/report/github.com/idoall/gocryptotrader)
+[![Build Status](https://travis-ci.com/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.com/thrasher-corp/gocryptotrader)
+[![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
+[![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader)
+[![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 A cryptocurrency trading bot supporting multiple exchanges written in Golang.
 
@@ -106,7 +87,7 @@ When submitting a PR, please abide by our coding guidelines:
 
 + Code must adhere to the official Go [formatting](https://golang.org/doc/effective_go.html#formatting) guidelines (i.e. uses [gofmt](https://golang.org/cmd/gofmt/)).
 + Code must be documented adhering to the official Go [commentary](https://golang.org/doc/effective_go.html#commentary) guidelines.
-+ Code must adhere to our [coding style](https://github.com/idoall/gocryptotrader/blob/master/.github/CONTRIBUTING.md).
++ Code must adhere to our [coding style](https://github.com/thrasher-corp/gocryptotrader/blob/master/.github/CONTRIBUTING.md).
 + Pull requests need to be based on and opened against the `master` branch.
 
 ## Compiling instructions
@@ -120,7 +101,7 @@ GoCryptoTrader is built using [Go Modules](https://github.com/golang/go/wiki/Mod
 Using Go Modules you now clone this repository **outside** your GOPATH
 
 ```bash
-git clone https://github.com/idoall/gocryptotrader.git
+git clone https://github.com/thrasher-corp/gocryptotrader.git
 cd gocryptotrader
 go build
 mkdir ~/.gocryptotrader
@@ -130,7 +111,7 @@ cp config_example.json ~/.gocryptotrader/config.json
 ### Windows
 
 ```bash
-git clone https://github.com/idoall/gocryptotrader.git
+git clone https://github.com/thrasher-corp/gocryptotrader.git
 cd gocryptotrader
 go build
 copy config_example.json %APPDATA%\GoCryptoTrader\config.json
@@ -141,7 +122,7 @@ copy config_example.json %APPDATA%\GoCryptoTrader\config.json
 
 ## Donations
 
-<img src="https://github.com/idoall/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
+<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 

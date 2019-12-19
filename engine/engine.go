@@ -10,16 +10,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/idoall/gocryptotrader/common"
-	"github.com/idoall/gocryptotrader/config"
-	"github.com/idoall/gocryptotrader/currency"
-	"github.com/idoall/gocryptotrader/currency/coinmarketcap"
-	"github.com/idoall/gocryptotrader/dispatch"
-	exchange "github.com/idoall/gocryptotrader/exchanges"
-	"github.com/idoall/gocryptotrader/exchanges/request"
-	log "github.com/idoall/gocryptotrader/logger"
-	"github.com/idoall/gocryptotrader/portfolio"
-	"github.com/idoall/gocryptotrader/utils"
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/currency/coinmarketcap"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	log "github.com/thrasher-corp/gocryptotrader/logger"
+	"github.com/thrasher-corp/gocryptotrader/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/utils"
 )
 
 // Engine contains configuration, portfolio, exchange & ticker data and is the

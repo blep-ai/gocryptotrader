@@ -3,7 +3,7 @@ package hitbtc
 import (
 	"time"
 
-	"github.com/idoall/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 // TickerResponse is the response type
