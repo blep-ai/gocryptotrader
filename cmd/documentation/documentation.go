@@ -167,7 +167,7 @@ func main() {
 
 		// Github API missing contributors
 		contributors = append(contributors, []Contributor{
-			// thrasher-corp's contributors were forked and merged, so his contributions
+			// idoall's contributors were forked and merged, so his contributions
 			// aren't automatically retrievable
 			{
 				Login:         "idoall",
