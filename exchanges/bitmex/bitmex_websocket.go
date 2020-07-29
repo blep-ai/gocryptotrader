@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -272,17 +273,38 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			}
 			b.Websocket.DataHandler <- response
 		case bitmexWSInstrument:
-			var instrument InstrumentData
-			err = json.Unmarshal(respRaw, &instrument)
+			var response InstrumentData
+			err = json.Unmarshal(respRaw, &response)
 			if err != nil {
 				return err
 			}
 
-			if instrument.Action == bitmexActionInitialData {
-				return nil
-			}
+			//if response.Action == bitmexActionInitialData {
+				//return nil
+			//}
 
-			b.Websocket.DataHandler <- instrument.Data
+			for i := range response.Data {
+				var a asset.Item
+				a, err = b.GetPairAssetType(response.Data[i].Symbol)
+				if err != nil {
+					return err
+				}
+				b.Websocket.DataHandler <- &ticker.Price{
+					ExchangeName: b.Name,
+					Open:         response.Data[i].PrevClosePrice,
+					Close:        response.Data[i].LastPrice,
+					Volume:       response.Data[i].Volume, // or Volume24h. or homeNotional/foreignNotional for btc or usd
+					High:         response.Data[i].HighPrice,
+					Low:          response.Data[i].LowPrice,
+					Bid:          response.Data[i].BidPrice,
+					Ask:          response.Data[i].AskPrice,
+					Last:         response.Data[i].LastPrice,
+					AssetType:    a,
+					Pair:         response.Data[i].Symbol,
+					LastUpdated:  response.Data[i].Timestamp,
+					OpenInterest: float64(response.Data[i].OpenInterest),
+				}
+			}
 		case bitmexWSExecution:
 			// trades of an order
 			var response WsExecutionResponse
