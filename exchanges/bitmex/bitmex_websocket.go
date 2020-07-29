@@ -272,7 +272,17 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			}
 			b.Websocket.DataHandler <- response
 		case bitmexWSInstrument:
-			// ticker
+			var instrument InstrumentData
+			err = json.Unmarshal(respRaw, &instrument)
+			if err != nil {
+				return err
+			}
+
+			if instrument.Action == bitmexActionInitialData {
+				return nil
+			}
+
+			b.Websocket.DataHandler <- instrument.Data
 		case bitmexWSExecution:
 			// trades of an order
 			var response WsExecutionResponse
