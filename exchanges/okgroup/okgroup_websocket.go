@@ -439,6 +439,7 @@ func (o *OKGroup) wsProcessTickers(respRaw []byte) error {
 			AssetType:    o.GetAssetTypeFromTableName(response.Table),
 			Pair:         c,
 			LastUpdated:  response.Data[i].Timestamp,
+			OpenInterest: response.Data[i].OpenInterest,
 		}
 	}
 	return nil
