@@ -451,7 +451,6 @@ type Settlement struct {
 // Stats Exchange Statistics
 type Stats struct {
 	Currency     string `json:"currency"`
-	OpenInterest int64  `json:"openInterest"`
 	OpenValue    int64  `json:"openValue"`
 	RootSymbol   string `json:"rootSymbol"`
 	Turnover24h  int64  `json:"turnover24h"`

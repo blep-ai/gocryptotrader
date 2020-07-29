@@ -74,6 +74,11 @@ type AnnouncementData struct {
 	Action string         `json:"action"`
 }
 
+type InstrumentData struct {
+	Data   []Instrument `json:"data"`
+	Action string       `json:"action"`
+}
+
 // WsAffiliateResponse private api response
 type WsAffiliateResponse struct {
 	WsDataResponse
