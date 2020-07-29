@@ -575,7 +575,7 @@ func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 		return nil, fmt.Errorf("%s generate default subscriptions: pair and asset type len mismatch", b.Name)
 	}
 
-	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
+	channels := []string{bitmexWSInstrument} //bitmexWSOrderbookL2, bitmexWSTrade}
 	subscriptions := []stream.ChannelSubscription{
 		{
 			Channel: bitmexWSAnnouncement,
