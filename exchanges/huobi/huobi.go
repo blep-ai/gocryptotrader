@@ -59,6 +59,7 @@ const (
 	huobiStatusError           = "error"
 
 	huobiSwapOpenInterest      = "swap-api/v1/swap_open_interest"
+	huobiFuturesOpenInterest   = "api/v1/contract_open_interest"
 )
 
 // HUOBI is the overarching type across this package
@@ -105,6 +106,33 @@ func (h *HUOBI) GetSwapOpenInterest(arg OpenInterestRequestParams) (time.Time, [
 	vals := url.Values{}
 	if arg.ContractCode != "" {
 		vals.Set("contract_code", arg.ContractCode)
+	}
+	err := h.SendHTTPRequest(common.EncodeURLValues(urlPath, vals), &result)
+
+	if result.ErrorMessage != "" {
+		return time.Unix(0, result.Timestamp * int64(time.Millisecond)), nil, errors.New(result.ErrorMessage)
+	}
+	return time.Unix(0, result.Timestamp * int64(time.Millisecond)), result.Data, err
+}
+
+func (h *HUOBI) GetFuturesOpenInterest(arg OpenInterestRequestParams) (time.Time, []OpenInterest, error) {
+	type response struct {
+		Response
+		Data []OpenInterest `json:"data"`
+	}
+
+	var result response
+	urlPath := fmt.Sprintf("%s/%s", h.API.Endpoints.URLSecondaryDefault, huobiFuturesOpenInterest)
+
+	vals := url.Values{}
+	if arg.ContractCode != "" {
+		vals.Set("contract_code", arg.ContractCode)
+	}
+	if arg.Symbol != "" {
+		vals.Set("symbol", arg.Symbol)
+	}
+	if arg.ContractType != "" {
+		vals.Set("contract_type", arg.ContractType)
 	}
 	err := h.SendHTTPRequest(common.EncodeURLValues(urlPath, vals), &result)
 

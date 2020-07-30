@@ -602,11 +602,14 @@ type authenticationPing struct {
 
 // KlinesRequestParams represents Klines request data.
 type OpenInterestRequestParams struct {
+	Symbol       string // only for futures, not swap
+	ContractType string // only for futures, not swap
 	ContractCode string
 }
 
 type OpenInterest struct {
 	Symbol       string `json:"symbol"`
+	ContractType string `json:"contract_type"` // only for futures. change to enum?
 	Volume       float64    `json:"volume"`
 	Amount       float64    `json:"amount"`
 	ContractCode string `json:"contract_code"`
