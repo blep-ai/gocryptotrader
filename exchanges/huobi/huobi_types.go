@@ -597,3 +597,17 @@ type authenticationPing struct {
 	OP string `json:"op"`
 	TS int64  `json:"ts"`
 }
+
+//===========
+
+// KlinesRequestParams represents Klines request data.
+type OpenInterestRequestParams struct {
+	ContractCode string
+}
+
+type OpenInterest struct {
+	Symbol       string `json:"symbol"`
+	Volume       float64    `json:"volume"`
+	Amount       float64    `json:"amount"`
+	ContractCode string `json:"contract_code"`
+}

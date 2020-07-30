@@ -20,6 +20,7 @@ import (
 
 const (
 	huobiAPIURL      = "https://api.huobi.pro"
+	huobiFutureSwapAPIURL = "https://api.hbdm.com" // api.hbdm.vn for AWS
 	huobiAPIVersion  = "1"
 	huobiAPIVersion2 = "2"
 
@@ -56,6 +57,8 @@ const (
 	huobiWithdrawCreate        = "dw/withdraw/api/create"
 	huobiWithdrawCancel        = "dw/withdraw-virtual/%s/cancel"
 	huobiStatusError           = "error"
+
+	huobiSwapOpenInterest      = "swap-api/v1/swap_open_interest"
 )
 
 // HUOBI is the overarching type across this package
@@ -88,6 +91,27 @@ func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 		return nil, errors.New(result.ErrorMessage)
 	}
 	return result.Data, err
+}
+
+func (h *HUOBI) GetSwapOpenInterest(arg OpenInterestRequestParams) (time.Time, []OpenInterest, error) {
+	type response struct {
+		Response
+		Data []OpenInterest `json:"data"`
+	}
+
+	var result response
+	urlPath := fmt.Sprintf("%s/%s", h.API.Endpoints.URLSecondaryDefault, huobiSwapOpenInterest)
+
+	vals := url.Values{}
+	if arg.ContractCode != "" {
+		vals.Set("contract_code", arg.ContractCode)
+	}
+	err := h.SendHTTPRequest(common.EncodeURLValues(urlPath, vals), &result)
+
+	if result.ErrorMessage != "" {
+		return time.Unix(0, result.Timestamp * int64(time.Millisecond)), nil, errors.New(result.ErrorMessage)
+	}
+	return time.Unix(0, result.Timestamp * int64(time.Millisecond)), result.Data, err
 }
 
 // GetTickers returns the ticker for the specified symbol

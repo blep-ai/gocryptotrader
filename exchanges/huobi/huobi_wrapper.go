@@ -129,6 +129,8 @@ func (h *HUOBI) SetDefaults() {
 
 	h.API.Endpoints.URLDefault = huobiAPIURL
 	h.API.Endpoints.URL = h.API.Endpoints.URLDefault
+	h.API.Endpoints.URLSecondaryDefault = huobiFutureSwapAPIURL
+	h.API.Endpoints.URLSecondary = h.API.Endpoints.URLSecondaryDefault
 	h.API.Endpoints.WebsocketURL = wsMarketURL
 	h.Websocket = stream.New()
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
