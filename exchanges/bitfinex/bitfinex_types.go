@@ -552,6 +552,7 @@ const (
 	wsBook                                 = "book"
 	wsCandles                              = "candles"
 	wsTicker                               = "ticker"
+	wsStatus                               = "status"
 	wsTrades                               = "trades"
 	wsError                                = "error"
 )

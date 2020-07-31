@@ -64,6 +64,11 @@ func (b *Bitfinex) SetDefaults() {
 
 	fmt2 := currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+	}
+
+	perpfmt := currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
 	}
 
@@ -76,6 +81,10 @@ func (b *Bitfinex) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 	err = b.StoreAssetPairFormat(asset.MarginFunding, fmt1)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = b.StoreAssetPairFormat(asset.PerpetualSwap, perpfmt)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -267,7 +276,7 @@ func (b *Bitfinex) FetchTradablePairs(a asset.Item) ([]string, error) {
 			}
 			symbols = append(symbols, k[1:])
 		}
-	case asset.Margin:
+	case asset.PerpetualSwap:
 		for k := range items {
 			if !strings.Contains(k, ":") {
 				continue

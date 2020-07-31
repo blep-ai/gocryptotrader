@@ -55,4 +55,19 @@ type Ticker struct {
 	Price
 	Main  uuid.UUID
 	Assoc []uuid.UUID
+	DerivStatus
+}
+
+type DerivStatus struct {
+	DerivPrice              float64
+	SpotPrice               float64
+	InsuranceFundBalance    float64
+	NextFundingEvtTimestamp time.Time
+	NextFundingAccrued      float64
+	NextFundingStep         int
+	CurrentFunding          float64
+	MarkPrice               float64
+	OpenInterest            float64
+	ClampMin                float64
+	ClampMax                float64
 }

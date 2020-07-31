@@ -161,6 +161,12 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 		pairInfo := strings.Split(chanInfo.Pair, ":")
 		switch {
 		case len(pairInfo) >= 3:
+			if pairInfo[0] == "deriv" {
+				chanAsset = asset.PerpetualSwap
+				pair = currency.NewPairWithDelimiter(pairInfo[1][1:], pairInfo[2], ":")
+				break
+			}
+
 			newPair := pairInfo[2]
 			if newPair[0] == 'f' {
 				chanAsset = asset.MarginFunding
@@ -295,6 +301,30 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				Pair:         pair,
 			}
 			return nil
+		case wsStatus:
+			statusData := d[1].([]interface{})
+			b.Websocket.DataHandler <- &ticker.Ticker{
+				Price: ticker.Price{
+					LastUpdated:  time.Unix(0, int64(statusData[0].(float64))*int64(time.Millisecond)),
+					ExchangeName: b.Name,
+					AssetType:    chanAsset,
+					Pair:         pair,
+				},
+				DerivStatus: ticker.DerivStatus{
+					DerivPrice:              statusData[2].(float64),
+					SpotPrice:               statusData[3].(float64),
+					InsuranceFundBalance:    statusData[5].(float64),
+					NextFundingEvtTimestamp: time.Unix(0, int64(statusData[7].(float64))*int64(time.Millisecond)),
+					NextFundingAccrued:      statusData[8].(float64),
+					NextFundingStep:         int(statusData[9].(float64)),
+					CurrentFunding:          statusData[11].(float64),
+					MarkPrice:               statusData[14].(float64),
+					OpenInterest:            statusData[17].(float64),
+					//ClampMin:                statusData[21].(float64),
+					//ClampMax:                statusData[22].(float64),
+				},
+			}
+			return nil
 		case wsTrades:
 			var trades []WebsocketTrade
 			switch len(d) {
@@ -321,7 +351,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				}
 			case 3:
 				if d[1].(string) == wsTradeExecutionUpdate ||
-					d[1].(string) == wsFundingTradeUpdate {
+				d[1].(string) == wsFundingTradeUpdate {
 					// "(f)te - trade executed" && "(f)tu - trade updated"
 					// contain the same amount of data
 					// "(f)te" gets sent first so we can drop "(f)tu"
@@ -917,16 +947,18 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var channels = []string{
-		wsBook,
-		wsTrades,
-		wsTicker,
-		wsCandles,
+		//wsBook,
+		//wsTrades,
+		//wsTicker,
+		//wsCandles,
+		wsStatus,
 	}
 
 	var subscriptions []stream.ChannelSubscription
 	assets := b.GetAssetTypes()
 	for i := range assets {
 		enabledPairs, err := b.GetEnabledPairs(assets[i])
+		fmt.Println(assets[i].String(), enabledPairs)
 		if err != nil {
 			return nil, err
 		}
@@ -934,12 +966,11 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 		for j := range channels {
 			for k := range enabledPairs {
 				params := make(map[string]interface{})
-				if channels[j] == wsBook {
+				switch channels[j] {
+				case wsBook:
 					params["prec"] = "R0"
 					params["len"] = "100"
-				}
-
-				if channels[j] == wsCandles {
+				case wsCandles:
 					// TODO: Add ability to select timescale && funding period
 					var fundingPeriod string
 					prefix := "t"
@@ -948,7 +979,10 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 						fundingPeriod = ":p30"
 					}
 					params["key"] = "trade:1m:" + prefix + enabledPairs[k].String() + fundingPeriod
-				} else {
+				case wsStatus:
+					prefix := "t"
+					params["key"] = "deriv:" + prefix + enabledPairs[k].String()
+				default:
 					params["symbol"] = enabledPairs[k].String()
 				}
 
