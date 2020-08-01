@@ -3,7 +3,6 @@ package deribit
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 	"text/template"
@@ -104,7 +103,6 @@ func StreamName(name string, params StreamParams) (string, error) {
 }
 
 func (de *Deribit) WsConnect() error {
-	fmt.Println("WSCONNECT")
 	if !de.Websocket.IsEnabled() || !de.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -173,9 +171,6 @@ channels:
 				errs = append(errs, err)
 				continue channels
 			}
-
-			fmt.Printf("assetType %+v\n", a)
-			fmt.Printf("Pair %+v\n", channelsToSubscribe[i].Currency)
 
 			formattedPair, err := de.FormatExchangeCurrency(channelsToSubscribe[i].Currency, a)
 			if err != nil {
@@ -253,12 +248,6 @@ func (de *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 				pairs[z].Quote.String(),
 				pairs[z].Delimiter)
 			for _, c := range channels {
-				fmt.Printf("%+v\n", stream.ChannelSubscription{
-						Channel:  c,
-						Currency: newPair,
-						Asset:    assets[a],
-					})
-
 				subscriptions = append(subscriptions,
 					stream.ChannelSubscription{
 						Channel:  c,
