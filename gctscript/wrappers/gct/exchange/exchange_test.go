@@ -58,8 +58,8 @@ func TestExchange_Exchanges(t *testing.T) {
 	t.Parallel()
 	x := exchangeTest.Exchanges(false)
 	y := len(x)
-	if y != 28 {
-		t.Fatalf("expected 28 received %v", y)
+	if y != 29 {
+		t.Fatalf("expected 29 received %v", y)
 	}
 }
 
