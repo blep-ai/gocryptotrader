@@ -69,12 +69,12 @@ func (de *Deribit) SetDefaults() {
 	// can use this example below:
 
 	futsfmt := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: "-"},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: "-"},
 	}
 
 	perpfmt := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: "-"},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: "-"},
 	}
 
@@ -135,47 +135,32 @@ func (de *Deribit) Setup(exch *config.ExchangeConfig) error {
 		return nil
 	}
 
-	de.SetupDefaults(exch)
+	err := de.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
 
 	// If websocket is supported, please fill out the following
-	/*
-		err = de.Websocket.Setup(
-			&stream.WebsocketSetup{
-				Enabled:                          exch.Features.Enabled.Websocket,
-				Verbose:                          exch.Verbose,
-				AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
-				WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
-				DefaultURL:                       deribitWSURL,
-				ExchangeName:                     exch.Name,
-				RunningURL:                       exch.API.Endpoints.WebsocketURL,
-				Connector:                        de.WsConnect,
-				Subscriber:                       de.Subscribe,
-				UnSubscriber:                     de.Unsubscribe,
-				Features:                         &de.Features.Supports.WebsocketCapabilities,
-			})
-		if err != nil {
-			return err
-		}
-
-		de.WebsocketConn = &stream.WebsocketConnection{
-			ExchangeName:         de.Name,
-			URL:                  de.Websocket.GetWebsocketURL(),
-			ProxyURL:             de.Websocket.GetProxyAddress(),
-			Verbose:              de.Verbose,
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		}
-
-		// NOTE: PLEASE ENSURE YOU SET THE ORDERBOOK BUFFER SETTINGS CORRECTLY
-		de.Websocket.Orderbook.Setup(
-			exch.WebsocketOrderbookBufferLimit,
-			true,
-			true,
-			false,
-			false,
-			exch.Name)
-	*/
-	return nil
+	err = de.Websocket.Setup(&stream.WebsocketSetup{
+		Enabled:                          exch.Features.Enabled.Websocket,
+		Verbose:                          exch.Verbose,
+		AuthenticatedWebsocketAPISupport: exch.API.AuthenticatedWebsocketSupport,
+		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
+		DefaultURL:                       deribitWSURL,
+		ExchangeName:                     exch.Name,
+		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		Connector:                        de.WsConnect,
+		Subscriber:                       de.Subscribe,
+		UnSubscriber:                     de.Unsubscribe,
+		Features:                         &de.Features.Supports.WebsocketCapabilities,
+	})
+	if err != nil {
+		return err
+	}
+	return de.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
 }
 
 // Start starts the Deribit go routine
