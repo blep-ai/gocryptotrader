@@ -303,6 +303,10 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			return nil
 		case wsStatus:
 			statusData := d[1].([]interface{})
+			var safeCurrentFunding float64
+			if statusData[11] != nil {
+				safeCurrentFunding = statusData[11].(float64)
+			}
 			b.Websocket.DataHandler <- &ticker.Ticker{
 				Price: ticker.Price{
 					LastUpdated:  time.Unix(0, int64(statusData[0].(float64))*int64(time.Millisecond)),
@@ -317,7 +321,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					NextFundingEvtTimestamp: time.Unix(0, int64(statusData[7].(float64))*int64(time.Millisecond)),
 					NextFundingAccrued:      statusData[8].(float64),
 					NextFundingStep:         int(statusData[9].(float64)),
-					CurrentFunding:          statusData[11].(float64),
+					CurrentFunding:          safeCurrentFunding,
 					MarkPrice:               statusData[14].(float64),
 					OpenInterest:            statusData[17].(float64),
 					//ClampMin:                statusData[21].(float64),
