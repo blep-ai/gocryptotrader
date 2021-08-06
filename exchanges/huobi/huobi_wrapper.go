@@ -164,6 +164,7 @@ func (h *HUOBI) SetDefaults() {
 		exchange.RestFutures:      huobiURL,
 		exchange.RestCoinMargined: huobiFuturesURL,
 		exchange.WebsocketSpot:    wsMarketURL,
+		exchange.RestSwap: huobiFutureSwapAPIURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)

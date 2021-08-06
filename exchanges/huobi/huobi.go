@@ -124,13 +124,12 @@ func (h *HUOBI) GetSwapOpenInterest(arg OpenInterestRequestParams) (time.Time, [
 	}
 
 	var result response
-	urlPath := fmt.Sprintf("%s/%s", h.API.Endpoints.URLSecondaryDefault, huobiSwapOpenInterest)
 
 	vals := url.Values{}
 	if arg.ContractCode != "" {
 		vals.Set("contract_code", arg.ContractCode)
 	}
-	err := h.SendHTTPRequest(common.EncodeURLValues(urlPath, vals), &result)
+	err := h.SendHTTPRequest(exchange.RestSwap, common.EncodeURLValues("/"+ huobiFuturesOpenInterest, vals), &result)
 
 	if result.ErrorMessage != "" {
 		return time.Unix(0, result.Timestamp * int64(time.Millisecond)), nil, errors.New(result.ErrorMessage)
@@ -145,7 +144,6 @@ func (h *HUOBI) GetFuturesOpenInterest(arg OpenInterestRequestParams) (time.Time
 	}
 
 	var result response
-	urlPath := fmt.Sprintf("%s/%s", h.API.Endpoints.URLSecondaryDefault, huobiFuturesOpenInterest)
 
 	vals := url.Values{}
 	if arg.ContractCode != "" {
@@ -157,12 +155,13 @@ func (h *HUOBI) GetFuturesOpenInterest(arg OpenInterestRequestParams) (time.Time
 	if arg.ContractType != "" {
 		vals.Set("contract_type", arg.ContractType)
 	}
-	err := h.SendHTTPRequest(common.EncodeURLValues(urlPath, vals), &result)
+	err := h.SendHTTPRequest(exchange.RestSwap, common.EncodeURLValues("/"+ huobiFuturesOpenInterest, vals), &result)
 
 	if result.ErrorMessage != "" {
-		return time.Unix(0, result.Timestamp * int64(time.Millisecond)), nil, errors.New(result.ErrorMessage)
+		return time.Unix(0, result.Timestamp*int64(time.Millisecond)), nil, errors.New(result.ErrorMessage)
 	}
-	return time.Unix(0, result.Timestamp * int64(time.Millisecond)), result.Data, err
+	return time.Unix(0, result.Timestamp*int64(time.Millisecond)), result.Data, err
+}
 
 // Get24HrMarketSummary returns 24hr market summary for a given market symbol
 func (h *HUOBI) Get24HrMarketSummary(symbol currency.Pair) (MarketSummary24Hr, error) {
