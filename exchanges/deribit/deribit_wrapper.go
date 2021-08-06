@@ -1,6 +1,7 @@
 package deribit
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"sync"
 	"time"
 
@@ -310,12 +311,12 @@ func (de *Deribit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (de *Deribit) UpdateAccountInfo() (account.Holdings, error) {
+func (de *Deribit) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	return account.Holdings{}, common.ErrNotYetImplemented
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (de *Deribit) FetchAccountInfo() (account.Holdings, error) {
+func (de *Deribit) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	return account.Holdings{}, common.ErrNotYetImplemented
 }
 
@@ -356,7 +357,7 @@ func (de *Deribit) CancelAllOrders(orderCancellation *order.Cancel) (order.Cance
 }
 
 // GetOrderInfo returns information on a current open order
-func (de *Deribit) GetOrderInfo(orderID string) (order.Detail, error) {
+func (de *Deribit) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	return order.Detail{}, common.ErrNotYetImplemented
 }
 
@@ -400,8 +401,8 @@ func (de *Deribit) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 }
 
 // ValidateCredentials validates current credentials used for wrapper
-func (de *Deribit) ValidateCredentials() error {
-	_, err := de.UpdateAccountInfo()
+func (de *Deribit) ValidateCredentials(assetType asset.Item) error {
+	_, err := de.UpdateAccountInfo(assetType)
 	return de.CheckTransientError(err)
 }
 
@@ -413,4 +414,20 @@ func (de *Deribit) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (de *Deribit) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrNotYetImplemented
+}
+
+func (de *Deribit) GetRecentTrades(p currency.Pair, a asset.Item) ([]trade.Data, error) {
+	panic("implement me")
+}
+
+func (de *Deribit) GetHistoricTrades(p currency.Pair, a asset.Item, startTime, endTime time.Time) ([]trade.Data, error) {
+	panic("implement me")
+}
+
+func (de *Deribit) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+	panic("implement me")
+}
+
+func (de *Deribit) GetWithdrawalsHistory(code currency.Code) ([]exchange.WithdrawalHistory, error) {
+	panic("implement me")
 }
