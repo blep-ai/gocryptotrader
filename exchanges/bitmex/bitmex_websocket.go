@@ -281,7 +281,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			}
 
 			//if response.Action == bitmexActionInitialData {
-				//return nil
+			//return nil
 			//}
 
 			for i := range response.Data {

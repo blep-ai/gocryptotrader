@@ -20,12 +20,12 @@ import (
 )
 
 const (
-	huobiAPIURL      = "https://api.huobi.pro"
+	huobiAPIURL           = "https://api.huobi.pro"
 	huobiFutureSwapAPIURL = "https://api.hbdm.com" // api.hbdm.vn for AWS
-	huobiURL         = "https://api.hbdm.com/"
-	huobiFuturesURL  = "https://api.hbdm.com"
-	huobiAPIVersion  = "1"
-	huobiAPIVersion2 = "2"
+	huobiURL              = "https://api.hbdm.com/"
+	huobiFuturesURL       = "https://api.hbdm.com"
+	huobiAPIVersion       = "1"
+	huobiAPIVersion2      = "2"
 
 	// Spot endpoints
 	huobiMarketHistoryKline    = "market/history/kline"
@@ -116,7 +116,6 @@ func (h *HUOBI) GetSpotKline(arg KlinesRequestParams) ([]KlineItem, error) {
 	return result.Data, err
 }
 
-
 func (h *HUOBI) GetSwapOpenInterest(arg OpenInterestRequestParams) (time.Time, []OpenInterest, error) {
 	type response struct {
 		Response
@@ -129,12 +128,12 @@ func (h *HUOBI) GetSwapOpenInterest(arg OpenInterestRequestParams) (time.Time, [
 	if arg.ContractCode != "" {
 		vals.Set("contract_code", arg.ContractCode)
 	}
-	err := h.SendHTTPRequest(exchange.RestSwap, common.EncodeURLValues("/"+ huobiFuturesOpenInterest, vals), &result)
+	err := h.SendHTTPRequest(exchange.RestSwap, common.EncodeURLValues("/"+huobiFuturesOpenInterest, vals), &result)
 
 	if result.ErrorMessage != "" {
-		return time.Unix(0, result.Timestamp * int64(time.Millisecond)), nil, errors.New(result.ErrorMessage)
+		return time.Unix(0, result.Timestamp*int64(time.Millisecond)), nil, errors.New(result.ErrorMessage)
 	}
-	return time.Unix(0, result.Timestamp * int64(time.Millisecond)), result.Data, err
+	return time.Unix(0, result.Timestamp*int64(time.Millisecond)), result.Data, err
 }
 
 func (h *HUOBI) GetFuturesOpenInterest(arg OpenInterestRequestParams) (time.Time, []OpenInterest, error) {
@@ -155,7 +154,7 @@ func (h *HUOBI) GetFuturesOpenInterest(arg OpenInterestRequestParams) (time.Time
 	if arg.ContractType != "" {
 		vals.Set("contract_type", arg.ContractType)
 	}
-	err := h.SendHTTPRequest(exchange.RestSwap, common.EncodeURLValues("/"+ huobiFuturesOpenInterest, vals), &result)
+	err := h.SendHTTPRequest(exchange.RestSwap, common.EncodeURLValues("/"+huobiFuturesOpenInterest, vals), &result)
 
 	if result.ErrorMessage != "" {
 		return time.Unix(0, result.Timestamp*int64(time.Millisecond)), nil, errors.New(result.ErrorMessage)

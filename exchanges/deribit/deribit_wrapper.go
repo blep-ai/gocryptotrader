@@ -80,8 +80,8 @@ func (de *Deribit) SetDefaults() {
 	}
 
 	//optfmt := currency.PairStore{
-		//RequestFormat: &currency.PairFormat{Uppercase: true},
-		//ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
+	//RequestFormat: &currency.PairFormat{Uppercase: true},
+	//ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
 	//}
 
 	err = de.StoreAssetPairFormat(asset.Futures, futsfmt)
@@ -94,7 +94,7 @@ func (de *Deribit) SetDefaults() {
 	}
 	//err = de.StoreAssetPairFormat(asset.Option, fmt2)
 	//if err != nil {
-		//log.Errorln(log.ExchangeSys, err)
+	//log.Errorln(log.ExchangeSys, err)
 	//}
 
 	// Fill out the capabilities/features that the exchange supports
@@ -122,7 +122,7 @@ func (de *Deribit) SetDefaults() {
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	de.API.Endpoints = de.NewEndpoints()
 	err = de.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:         deribitAPIURL,
+		exchange.RestSpot: deribitAPIURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -300,7 +300,6 @@ func (de *Deribit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 			})
 		}
 	*/
-
 
 	err := orderBook.Process()
 	if err != nil {

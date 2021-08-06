@@ -30,18 +30,18 @@ const (
 
 	// Use this javascript to generate list of endpoints, at https://docs.deribit.com/
 	/*
-	let endpoints = [], results = []
-	const snakeToCamel = (str) => str.replace(/([-_\/][a-z])/g,(group) => group.toUpperCase().replace('-', '').replace('_', '').replace('/', ''))
-	for (let x = 5; x<15; x++) {
-		endpoints = endpoints.concat(...$(`#toc > li:nth-child(${x}) > ul > li > a`).map((i, x)=>x.text))
-	}
-	results.push("\n// Public endpoints")
-	results = results.concat(endpoints.filter(e => e.startsWith("/public")).map(x => `${snakeToCamel(x)} = "${x}"`))
-	results.push("\n// Authenticated endpoints")
-	results = results.concat(endpoints.filter(e => e.startsWith("/private")).map(x => `${snakeToCamel(x)} = "${x}"`))
-	results.push("\n// Websocket channels")
-	results = results.concat(endpoints.filter(e => !e.startsWith("/")).map(x => `//"${x}"`))
-	console.log(results.join("\n"))
+		let endpoints = [], results = []
+		const snakeToCamel = (str) => str.replace(/([-_\/][a-z])/g,(group) => group.toUpperCase().replace('-', '').replace('_', '').replace('/', ''))
+		for (let x = 5; x<15; x++) {
+			endpoints = endpoints.concat(...$(`#toc > li:nth-child(${x}) > ul > li > a`).map((i, x)=>x.text))
+		}
+		results.push("\n// Public endpoints")
+		results = results.concat(endpoints.filter(e => e.startsWith("/public")).map(x => `${snakeToCamel(x)} = "${x}"`))
+		results.push("\n// Authenticated endpoints")
+		results = results.concat(endpoints.filter(e => e.startsWith("/private")).map(x => `${snakeToCamel(x)} = "${x}"`))
+		results.push("\n// Websocket channels")
+		results = results.concat(endpoints.filter(e => !e.startsWith("/")).map(x => `//"${x}"`))
+		console.log(results.join("\n"))
 	*/
 
 	// Public endpoints
@@ -193,7 +193,7 @@ func (d *Deribit) GetInstruments(currency string, kind Kind, expired bool) ([]In
 	}
 
 	var instruments Instruments
-	return instruments.Result, d.SendHTTPRequest(exchange.RestSpot, PublicGetInstruments + "?" + params.Encode(), &instruments)
+	return instruments.Result, d.SendHTTPRequest(exchange.RestSpot, PublicGetInstruments+"?"+params.Encode(), &instruments)
 }
 
 // SendHTTPRequest sends an unauthenticated request

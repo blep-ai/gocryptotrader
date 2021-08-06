@@ -1043,7 +1043,6 @@ type authenticationPing struct {
 	TS int64  `json:"ts"`
 }
 
-
 //===========
 
 // KlinesRequestParams represents Klines request data.
@@ -1054,11 +1053,11 @@ type OpenInterestRequestParams struct {
 }
 
 type OpenInterest struct {
-	Symbol       string `json:"symbol"`
-	ContractType string `json:"contract_type"` // only for futures. change to enum?
-	Volume       float64    `json:"volume"`
-	Amount       float64    `json:"amount"`
-	ContractCode string `json:"contract_code"`
+	Symbol       string  `json:"symbol"`
+	ContractType string  `json:"contract_type"` // only for futures. change to enum?
+	Volume       float64 `json:"volume"`
+	Amount       float64 `json:"amount"`
+	ContractCode string  `json:"contract_code"`
 }
 
 // OrderVars stores side, status and type for any order/trade
