@@ -28,7 +28,9 @@ func TestMain(m *testing.M) {
 	testMode = true
 	c := log.GenDefaultSettings()
 	c.Enabled = convert.BoolPtr(true)
+	log.RWM.Lock()
 	log.GlobalLogConfig = &c
+	log.RWM.Unlock()
 	log.Infoln(log.Global, "set verbose to true for more detailed output")
 	var err error
 	configData, err = readFileData(jsonFile)
@@ -158,7 +160,7 @@ func TestAdd(t *testing.T) {
 	}
 	err := addExch("FalseName", htmlScrape, data2, false)
 	if err == nil {
-		t.Log("expected an error due to invalid path being parsed in")
+		t.Error("expected an error due to invalid path being parsed in")
 	}
 }
 
@@ -337,22 +339,6 @@ func TestHTMLItBit(t *testing.T) {
 		RegExp:        `^https://api.itbit.com/v\d{1}/$`,
 		Path:          "https://api.itbit.com/docs"}
 	_, err := htmlScrapeItBit(&data)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestHTMLLakeBTC(t *testing.T) {
-	t.Parallel()
-	data := HTMLScrapingData{TokenData: "div",
-		Key:           "class",
-		Val:           "flash-message",
-		TokenDataEnd:  "h2",
-		TextTokenData: "h1",
-		DateFormat:    "",
-		RegExp:        `APIv\d{1}`,
-		Path:          "https://www.lakebtc.com/s/api_v2"}
-	_, err := htmlScrapeLakeBTC(&data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -635,7 +621,7 @@ func TestWriteAuthVars(t *testing.T) {
 		trelloCardID = "jdsfl"
 		err := writeAuthVars(testMode)
 		if err != nil {
-			t.Log(err)
+			t.Error(err)
 		}
 	}
 }

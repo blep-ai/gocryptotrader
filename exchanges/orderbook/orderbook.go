@@ -1,7 +1,6 @@
 package orderbook
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -11,155 +10,192 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Get checks and returns the orderbook given an exchange name and currency pair
-// if it exists
 func Get(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
-	o, err := service.Retrieve(exchange, p, a)
-	if err != nil {
-		return nil, err
-	}
-	return o, nil
+	return service.Retrieve(exchange, p, a)
 }
 
-// SubscribeOrderbook subcribes to an orderbook and returns a communication
-// channel to stream orderbook data updates
-func SubscribeOrderbook(exchange string, p currency.Pair, a asset.Item) (dispatch.Pipe, error) {
-	exchange = strings.ToLower(exchange)
-	service.RLock()
-	defer service.RUnlock()
-	book, ok := service.Books[exchange][p.Base.Item][p.Quote.Item][a]
-	if !ok {
-		return dispatch.Pipe{},
-			fmt.Errorf("orderbook item not found for %s %s %s",
-				exchange,
-				p,
-				a)
-	}
-	return service.mux.Subscribe(book.Main)
+// GetDepth returns a Depth pointer allowing the caller to stream orderbook
+// changes
+func GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
+	return service.GetDepth(exchange, p, a)
 }
 
-// SubscribeToExchangeOrderbooks subcribes to all orderbooks on an exchange
+// DeployDepth sets a depth struct and returns a depth pointer. This allows for
+// the loading of a new orderbook snapshot and incremental updates via the
+// streaming package.
+func DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
+	return service.DeployDepth(exchange, p, a)
+}
+
+// SubscribeToExchangeOrderbooks returns a pipe to an exchange feed
 func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
-	exchange = strings.ToLower(exchange)
-	service.RLock()
-	defer service.RUnlock()
-	id, ok := service.Exchange[exchange]
+	service.Lock()
+	defer service.Unlock()
+	exch, ok := service.books[strings.ToLower(exchange)]
 	if !ok {
-		return dispatch.Pipe{}, fmt.Errorf("%s exchange orderbooks not found",
-			exchange)
+		return dispatch.Pipe{}, fmt.Errorf("%w for %s exchange",
+			errCannotFindOrderbook, exchange)
 	}
-	return service.mux.Subscribe(id)
+	return service.Mux.Subscribe(exch.ID)
 }
 
 // Update stores orderbook data
 func (s *Service) Update(b *Base) error {
-	name := strings.ToLower(b.ExchangeName)
+	name := strings.ToLower(b.Exchange)
 	s.Lock()
-	book, ok := s.Books[name][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType]
-	if ok {
-		book.b.Bids = b.Bids
-		book.b.Asks = b.Asks
-		book.b.LastUpdated = b.LastUpdated
-		ids := append(book.Assoc, book.Main)
-		s.Unlock()
-		return s.mux.Publish(ids, b)
-	}
-
-	switch {
-	case s.Books[name] == nil:
-		s.Books[name] = make(map[*currency.Item]map[*currency.Item]map[asset.Item]*Book)
-		fallthrough
-	case s.Books[name][b.Pair.Base.Item] == nil:
-		s.Books[name][b.Pair.Base.Item] = make(map[*currency.Item]map[asset.Item]*Book)
-		fallthrough
-	case s.Books[name][b.Pair.Base.Item][b.Pair.Quote.Item] == nil:
-		s.Books[name][b.Pair.Base.Item][b.Pair.Quote.Item] = make(map[asset.Item]*Book)
-	}
-
-	err := s.SetNewData(b, name)
-	if err != nil {
-		s.Unlock()
-		return err
-	}
-	s.Unlock()
-	return nil
-}
-
-// SetNewData sets new data
-func (s *Service) SetNewData(b *Base, fmtName string) error {
-	ids, err := s.GetAssociations(b, fmtName)
-	if err != nil {
-		return err
-	}
-	singleID, err := s.mux.GetID()
-	if err != nil {
-		return err
-	}
-
-	// Below instigates orderbook item separation so we can ensure, in the event
-	// of a simultaneous update via websocket/rest/fix, we don't affect package
-	// scoped orderbook data which could result in a potential panic
-	cpyBook := *b
-	cpyBook.Bids = make([]Item, len(b.Bids))
-	copy(cpyBook.Bids, b.Bids)
-	cpyBook.Asks = make([]Item, len(b.Asks))
-	copy(cpyBook.Asks, b.Asks)
-
-	s.Books[fmtName][b.Pair.Base.Item][b.Pair.Quote.Item][b.AssetType] = &Book{
-		b:     &cpyBook,
-		Main:  singleID,
-		Assoc: ids}
-	return nil
-}
-
-// GetAssociations links a singular book with it's dispatch associations
-func (s *Service) GetAssociations(b *Base, fmtName string) ([]uuid.UUID, error) {
-	if b == nil {
-		return nil, errors.New("orderbook is nil")
-	}
-
-	var ids []uuid.UUID
-	exchangeID, ok := s.Exchange[fmtName]
+	m1, ok := s.books[name]
 	if !ok {
-		var err error
-		exchangeID, err = s.mux.GetID()
+		id, err := s.Mux.GetID()
+		if err != nil {
+			s.Unlock()
+			return err
+		}
+		m1 = Exchange{
+			m:  make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth),
+			ID: id,
+		}
+		s.books[name] = m1
+	}
+
+	m2, ok := m1.m[b.Asset]
+	if !ok {
+		m2 = make(map[*currency.Item]map[*currency.Item]*Depth)
+		m1.m[b.Asset] = m2
+	}
+
+	m3, ok := m2[b.Pair.Base.Item]
+	if !ok {
+		m3 = make(map[*currency.Item]*Depth)
+		m2[b.Pair.Base.Item] = m3
+	}
+
+	book, ok := m3[b.Pair.Quote.Item]
+	if !ok {
+		book = newDepth(m1.ID)
+		book.AssignOptions(b)
+		m3[b.Pair.Quote.Item] = book
+	}
+	book.SetLastUpdate(b.LastUpdated, b.LastUpdateID, true)
+	book.LoadSnapshot(b.Bids, b.Asks)
+	s.Unlock()
+	return s.Mux.Publish([]uuid.UUID{m1.ID}, book.Retrieve())
+}
+
+// DeployDepth used for subsystem deployment creates a depth item in the struct
+// then returns a ptr to that Depth item
+func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
+	if exchange == "" {
+		return nil, errExchangeNameUnset
+	}
+	if p.IsEmpty() {
+		return nil, errPairNotSet
+	}
+	if !a.IsValid() {
+		return nil, errAssetTypeNotSet
+	}
+	s.Lock()
+	defer s.Unlock()
+	m1, ok := s.books[strings.ToLower(exchange)]
+	if !ok {
+		id, err := s.Mux.GetID()
 		if err != nil {
 			return nil, err
 		}
-		s.Exchange[fmtName] = exchangeID
+		m1 = Exchange{
+			m:  make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth),
+			ID: id,
+		}
+		s.books[strings.ToLower(exchange)] = m1
 	}
-
-	ids = append(ids, exchangeID)
-	return ids, nil
+	m2, ok := m1.m[a]
+	if !ok {
+		m2 = make(map[*currency.Item]map[*currency.Item]*Depth)
+		m1.m[a] = m2
+	}
+	m3, ok := m2[p.Base.Item]
+	if !ok {
+		m3 = make(map[*currency.Item]*Depth)
+		m2[p.Base.Item] = m3
+	}
+	book, ok := m3[p.Quote.Item]
+	if !ok {
+		book = newDepth(m1.ID)
+		book.exchange = exchange
+		book.pair = p
+		book.asset = a
+		m3[p.Quote.Item] = book
+	}
+	return book, nil
 }
 
-// Retrieve gets orderbook data from the slice
-func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
-	exchange = strings.ToLower(exchange)
-	s.RLock()
-	defer s.RUnlock()
-	if s.Books[exchange] == nil {
-		return nil, fmt.Errorf("no orderbooks for %s exchange", exchange)
+// GetDepth returns the actual depth struct for potential subsystems and
+// strategies to interact with
+func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Depth, error) {
+	s.Lock()
+	defer s.Unlock()
+	m1, ok := s.books[strings.ToLower(exchange)]
+	if !ok {
+		return nil, fmt.Errorf("%w for %s exchange",
+			errCannotFindOrderbook, exchange)
 	}
 
-	if s.Books[exchange][p.Base.Item] == nil {
-		return nil, fmt.Errorf("no orderbooks associated with base currency %s",
-			p.Base)
-	}
-
-	if s.Books[exchange][p.Base.Item][p.Quote.Item] == nil {
-		return nil, fmt.Errorf("no orderbooks associated with quote currency %s",
-			p.Quote)
-	}
-
-	if s.Books[exchange][p.Base.Item][p.Quote.Item][a] == nil {
-		return nil, fmt.Errorf("no orderbooks associated with asset type %s",
+	m2, ok := m1.m[a]
+	if !ok {
+		return nil, fmt.Errorf("%w associated with asset type %s",
+			errCannotFindOrderbook,
 			a)
 	}
 
-	return s.Books[exchange][p.Base.Item][p.Quote.Item][a].b, nil
+	m3, ok := m2[p.Base.Item]
+	if !ok {
+		return nil, fmt.Errorf("%w associated with base currency %s",
+			errCannotFindOrderbook,
+			p.Base)
+	}
+
+	book, ok := m3[p.Quote.Item]
+	if !ok {
+		return nil, fmt.Errorf("%w associated with base currency %s",
+			errCannotFindOrderbook,
+			p.Quote)
+	}
+	return book, nil
+}
+
+// Retrieve gets orderbook depth data from the associated linked list and
+// returns the base equivalent copy
+func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Base, error) {
+	s.Lock()
+	defer s.Unlock()
+	m1, ok := s.books[strings.ToLower(exchange)]
+	if !ok {
+		return nil, fmt.Errorf("%w for %s exchange",
+			errCannotFindOrderbook,
+			exchange)
+	}
+	m2, ok := m1.m[a]
+	if !ok {
+		return nil, fmt.Errorf("%w associated with asset type %s",
+			errCannotFindOrderbook,
+			a)
+	}
+	m3, ok := m2[p.Base.Item]
+	if !ok {
+		return nil, fmt.Errorf("%w associated with base currency %s",
+			errCannotFindOrderbook,
+			p.Base)
+	}
+	book, ok := m3[p.Quote.Item]
+	if !ok {
+		return nil, fmt.Errorf("%w associated with base currency %s",
+			errCannotFindOrderbook,
+			p.Quote)
+	}
+	return book.Retrieve(), nil
 }
 
 // TotalBidsAmount returns the total amount of bids and the total orderbook
@@ -182,69 +218,142 @@ func (b *Base) TotalAsksAmount() (amountCollated, total float64) {
 	return amountCollated, total
 }
 
-// Update updates the bids and asks
-func (b *Base) Update(bids, asks []Item) {
-	b.Bids = bids
-	b.Asks = asks
-	b.LastUpdated = time.Now()
+// Verify ensures that the orderbook items are correctly sorted prior to being
+// set and will reject any book with incorrect values.
+// Bids should always go from a high price to a low price and
+// Asks should always go from a low price to a higher price
+func (b *Base) Verify() error {
+	if !b.VerifyOrderbook {
+		return nil
+	}
+
+	// Checking for both ask and bid lengths being zero has been removed and
+	// a warning has been put in place for some exchanges that return zero
+	// level books. In the event that there is a massive liquidity change where
+	// a book dries up, this will still update so we do not traverse potential
+	// incorrect old data.
+	if len(b.Asks) == 0 || len(b.Bids) == 0 {
+		log.Warnf(log.OrderBook,
+			bookLengthIssue,
+			b.Exchange,
+			b.Pair,
+			b.Asset,
+			len(b.Bids),
+			len(b.Asks))
+	}
+	err := checkAlignment(b.Bids, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, dsc)
+	if err != nil {
+		return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
+	}
+	err = checkAlignment(b.Asks, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, asc)
+	if err != nil {
+		return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
+	}
+	return nil
 }
 
-// Verify ensures that the orderbook items are correctly sorted
-// Bids should always go from a high price to a low price and
-// asks should always go from a low price to a higher price
-func (b *Base) Verify() {
-	var lastPrice float64
-	var sortBids, sortAsks bool
-	for x := range b.Bids {
-		if lastPrice != 0 && b.Bids[x].Price >= lastPrice {
-			sortBids = true
-			break
+// checker defines specific functionality to determine ascending/descending
+// validation
+type checker func(current Item, previous Item) error
+
+// asc specifically defines ascending price check
+var asc = func(current Item, previous Item) error {
+	if current.Price < previous.Price {
+		return errPriceOutOfOrder
+	}
+	return nil
+}
+
+// dsc specifically defines descending price check
+var dsc = func(current Item, previous Item) error {
+	if current.Price > previous.Price {
+		return errPriceOutOfOrder
+	}
+	return nil
+}
+
+// checkAlignment validates full orderbook
+func checkAlignment(depth Items, fundingRate, priceDuplication, isIDAligned bool, c checker) error {
+	for i := range depth {
+		if depth[i].Price == 0 {
+			return errPriceNotSet
 		}
-		lastPrice = b.Bids[x].Price
-	}
-
-	lastPrice = 0
-	for x := range b.Asks {
-		if lastPrice != 0 && b.Asks[x].Price <= lastPrice {
-			sortAsks = true
-			break
+		if depth[i].Amount <= 0 {
+			return errAmountInvalid
 		}
-		lastPrice = b.Asks[x].Price
+		if fundingRate && depth[i].Period == 0 {
+			return errPeriodUnset
+		}
+		if i != 0 {
+			prev := i - 1
+			if err := c(depth[i], depth[prev]); err != nil {
+				return err
+			}
+			if isIDAligned && depth[i].ID < depth[prev].ID {
+				return errIDOutOfOrder
+			}
+			if !priceDuplication && depth[i].Price == depth[prev].Price {
+				return errDuplication
+			}
+			if depth[i].ID != 0 && depth[i].ID == depth[prev].ID {
+				return errIDDuplication
+			}
+		}
 	}
-
-	if sortBids {
-		sort.Sort(sort.Reverse(byOBPrice(b.Bids)))
-	}
-
-	if sortAsks {
-		sort.Sort((byOBPrice(b.Asks)))
-	}
+	return nil
 }
 
 // Process processes incoming orderbooks, creating or updating the orderbook
 // list
 func (b *Base) Process() error {
-	if b.ExchangeName == "" {
-		return errors.New(errExchangeNameUnset)
+	if b.Exchange == "" {
+		return errExchangeNameUnset
 	}
 
 	if b.Pair.IsEmpty() {
-		return errors.New(errPairNotSet)
+		return errPairNotSet
 	}
 
-	if b.AssetType.String() == "" {
-		return errors.New(errAssetTypeNotSet)
-	}
-
-	if len(b.Asks) == 0 && len(b.Bids) == 0 {
-		return errors.New(errNoOrderbook)
+	if b.Asset.String() == "" {
+		return errAssetTypeNotSet
 	}
 
 	if b.LastUpdated.IsZero() {
 		b.LastUpdated = time.Now()
 	}
 
-	b.Verify()
-
+	err := b.Verify()
+	if err != nil {
+		return err
+	}
 	return service.Update(b)
+}
+
+// Reverse reverses the order of orderbook items; some bid/asks are
+// returned in either ascending or descending order. One bid or ask slice
+// depending on whats received can be reversed. This is usually faster than
+// using a sort algorithm as the algorithm could be impeded by a worst case time
+// complexity when elements are shifted as opposed to just swapping element
+// values.
+func (elem *Items) Reverse() {
+	eLen := len(*elem)
+	var target int
+	for i := eLen/2 - 1; i >= 0; i-- {
+		target = eLen - 1 - i
+		(*elem)[i], (*elem)[target] = (*elem)[target], (*elem)[i]
+	}
+}
+
+// SortAsks sorts ask items to the correct ascending order if pricing values are
+// scattered. If order from exchange is descending consider using the Reverse
+// function.
+func (elem *Items) SortAsks() {
+	sort.Sort(byOBPrice(*elem))
+}
+
+// SortBids sorts bid items to the correct descending order if pricing values
+// are scattered. If order from exchange is ascending consider using the Reverse
+// function.
+func (elem *Items) SortBids() {
+	sort.Sort(sort.Reverse(byOBPrice(*elem)))
 }

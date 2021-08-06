@@ -108,14 +108,14 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	w.Wg = new(sync.WaitGroup)
 	w.SetCanUseAuthenticatedEndpoints(s.AuthenticatedWebsocketAPISupport)
 
-	w.Orderbook.Setup(s.OrderbookBufferLimit,
+	return w.Orderbook.Setup(s.OrderbookBufferLimit,
 		s.BufferEnabled,
 		s.SortBuffer,
 		s.SortBufferByUpdateIDs,
 		s.UpdateEntriesByID,
+		s.Verbose,
 		w.exchangeName,
 		w.DataHandler)
-	return nil
 }
 
 // SetupNewConnection sets up an auth or unauth streaming connection
@@ -192,11 +192,6 @@ func (w *Websocket) Connect() error {
 	w.trafficMonitor()
 	w.setConnectingStatus(true)
 
-	// flush any subscriptions from last connection if needed
-	w.subscriptionMutex.Lock()
-	w.subscriptions = nil
-	w.subscriptionMutex.Unlock()
-
 	err := w.connector()
 	if err != nil {
 		w.setConnectingStatus(false)
@@ -209,6 +204,14 @@ func (w *Websocket) Connect() error {
 
 	if !w.IsConnectionMonitorRunning() {
 		w.connectionMonitor()
+	}
+
+	// Resubscribe after re-connection
+	if len(w.subscriptions) != 0 {
+		err = w.Subscriber(w.subscriptions)
+		if err != nil {
+			return fmt.Errorf("%v Error subscribing %s", w.exchangeName, err)
+		}
 	}
 
 	return nil
@@ -503,7 +506,6 @@ func (w *Websocket) trafficMonitor() {
 						w.trafficTimeout)
 				}
 				trafficTimer.Stop()
-				w.Wg.Done()
 				if !w.IsConnecting() && w.IsConnected() {
 					err := w.Shutdown()
 					if err != nil {
@@ -513,6 +515,7 @@ func (w *Websocket) trafficMonitor() {
 					}
 				}
 				w.setTrafficMonitorRunning(false)
+				w.Wg.Done()
 				return
 			}
 

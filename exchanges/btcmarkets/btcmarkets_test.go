@@ -1,13 +1,13 @@
 package btcmarkets
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = b.ValidateCredentials()
+	err = b.ValidateCredentials(asset.Spot)
 	if err != nil {
 		fmt.Println("API credentials are invalid:", err)
 		b.API.AuthenticatedSupport = false
@@ -439,13 +439,13 @@ func TestGetBatchTrades(t *testing.T) {
 	}
 }
 
-func TestCancelBatchOrders(t *testing.T) {
+func TestCancelBatch(t *testing.T) {
 	t.Parallel()
 	if !areTestAPIKeysSet() || !canManipulateRealOrders {
 		t.Skip("skipping test, either api keys or manipulaterealorders isnt set correctly")
 	}
 	temp := []string{"4477045999", "4477381751", "4477381751"}
-	_, err := b.CancelBatchOrders(temp)
+	_, err := b.CancelBatch(temp)
 	if err != nil {
 		t.Error(err)
 	}
@@ -456,7 +456,7 @@ func TestFetchAccountInfo(t *testing.T) {
 	if !areTestAPIKeysSet() {
 		t.Skip("API keys required but not set, skipping test")
 	}
-	_, err := b.FetchAccountInfo()
+	_, err := b.FetchAccountInfo(asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -469,7 +469,8 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 
 	_, err := b.GetOrderHistory(&order.GetOrdersRequest{
-		Side: order.Buy,
+		Side:      order.Buy,
+		AssetType: asset.Spot,
 	})
 	if err != nil {
 		t.Error(err)
@@ -500,7 +501,7 @@ func TestGetActiveOrders(t *testing.T) {
 		t.Skip("API keys required but not set, skipping test")
 	}
 
-	_, err := b.GetActiveOrders(&order.GetOrdersRequest{})
+	_, err := b.GetActiveOrders(&order.GetOrdersRequest{AssetType: asset.Spot})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -729,14 +730,14 @@ func TestBTCMarkets_GetHistoricCandles(t *testing.T) {
 	}
 	_, err = b.GetHistoricCandles(p, asset.Spot, time.Now().Add(-time.Hour*24).UTC(), time.Now().UTC(), kline.FifteenMin)
 	if err != nil {
-		if !errors.As(err, &kline.ErrorKline{}) {
+		if err.Error() != "interval not supported" {
 			t.Fatal(err)
 		}
 	}
 }
 
 func TestBTCMarkets_GetHistoricCandlesExtended(t *testing.T) {
-	start := time.Now().AddDate(0, 0, -1001)
+	start := time.Now().AddDate(0, 0, -2)
 	end := time.Now()
 	p, err := currency.NewPairFromString(BTCAUD)
 	if err != nil {
@@ -776,5 +777,29 @@ func Test_FormatExchangeKlineInterval(t *testing.T) {
 				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
 			}
 		})
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("BTC-AUD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("BTC-AUD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Error(err)
 	}
 }

@@ -1,9 +1,9 @@
 # GoCryptoTrader package Documentation
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
-[![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
+[![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/cmd/documentation)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
@@ -22,7 +22,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 #### This tool allows for the generation of new documentation through templating
 
-From the `gocryptotrader/cmd/documentation/` folder, using the go command: **go run documentation.go** this will auto-generate and regenerate documentation  across the **GoCryptoTrader** code base.
+From the `gocryptotrader/cmd/documentation/` folder, using the go command: **go run documentation.go** this will auto-generate and regenerate documentation across the **GoCryptoTrader** code base.
 >Using the -v command will, ie **go run documentation.go -v** put the tool into verbose mode allowing you to see what is happening with a little more depth.
 
 Be aware, this tool will:
@@ -36,19 +36,19 @@ Be aware, this tool will:
 
 ```json
 {
-"githubRepo": "https://api.github.com/repos/thrasher-corp/gocryptotrader", This is your current repo
-"exclusionList": { This allows for excluded directories and files
-"Files": null,
-"Directories": [
-"_templates",
-".git",
-"web"
-]
-},
-"rootReadmeActive": true, allows a root directory README.md
-"licenseFileActive": true, allows for a license file to be generated
-"contributorFileActive": true, fetches a new contributor list
-"referencePathToRepo": "../../"
+ "githubRepo": "https://api.github.com/repos/thrasher-corp/gocryptotrader", This is your current repo
+ "exclusionList": { This allows for excluded directories and files
+  "Files": null,
+  "Directories": [
+   "_templates",
+   ".git",
+   "web"
+  ]
+ },
+ "rootReadmeActive": true, allows a root directory README.md
+ "licenseFileActive": true, allows for a license file to be generated
+ "contributorFileActive": true, fetches a new contributor list
+ "referencePathToRepo": "../../"
 }
 ```
 ### Template example

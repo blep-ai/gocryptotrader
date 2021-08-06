@@ -35,14 +35,6 @@ type Config struct {
 	Exchanges       map[string]*config.APICredentialsConfig `json:"exchanges"`
 }
 
-// Key is the format for wrapperconfig.json to store API credentials
-type Key struct {
-	APIKey    string `json:"apiKey"`
-	APISecret string `json:"apiSecret,omitempty"`
-	ClientID  string `json:"clientId,omitempty"`
-	OTPSecret string `json:"otpSecret,omitempty"`
-}
-
 // ExchangeResponses contains all responses
 // associated with an exchange
 type ExchangeResponses struct {
@@ -99,9 +91,10 @@ type Bank struct {
 
 // OrderSubmission contains all data required for a wrapper order submission
 type OrderSubmission struct {
-	OrderSide string  `json:"orderSide"`
-	OrderType string  `json:"orderType"`
-	Amount    float64 `json:"amount"`
-	Price     float64 `json:"price"`
-	OrderID   string  `json:"orderID"`
+	OrderSide string     `json:"orderSide"`
+	OrderType string     `json:"orderType"`
+	Amount    float64    `json:"amount"`
+	Price     float64    `json:"price"`
+	OrderID   string     `json:"orderID"`
+	AssetType asset.Item `json:"assetType"`
 }

@@ -17,6 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -48,11 +50,7 @@ func (b *BTSE) WsConnect() error {
 		}
 	}
 
-	subs, err := b.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return b.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // WsAuthenticate Send an authentication message to receive auth data
@@ -114,17 +112,48 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 	var result Result
 	err := json.Unmarshal(respRaw, &result)
 	if err != nil {
-		if strings.Contains(string(respRaw), "UNLOGIN_USER connect success") ||
-			strings.Contains(string(respRaw), "authenticated successfully") {
+		if strings.Contains(string(respRaw), "connect success") {
 			return nil
-		} else if strings.Contains(string(respRaw), "AUTHENTICATE ERROR") {
-			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			return errors.New("authentication failure")
 		}
 		return err
 	}
+	if result == nil {
+		return nil
+	}
+
+	if result["event"] != nil {
+		event, ok := result["event"].(string)
+		if !ok {
+			return errors.New(b.Name + stream.UnhandledMessage + string(respRaw))
+		}
+		switch event {
+		case "subscribe":
+			var subscribe WsSubscriptionAcknowledgement
+			err = json.Unmarshal(respRaw, &subscribe)
+			if err != nil {
+				return err
+			}
+			log.Infof(log.WebsocketMgr, "%v subscribed to %v", b.Name, strings.Join(subscribe.Channel, ", "))
+		case "login":
+			var login WsLoginAcknowledgement
+			err = json.Unmarshal(respRaw, &login)
+			if err != nil {
+				return err
+			}
+			b.Websocket.SetCanUseAuthenticatedEndpoints(login.Success)
+			log.Infof(log.WebsocketMgr, "%v websocket authenticated: %v", b.Name, login.Success)
+		default:
+			return errors.New(b.Name + stream.UnhandledMessage + string(respRaw))
+		}
+		return nil
+	}
+
+	topic, ok := result["topic"].(string)
+	if !ok {
+		return errors.New(b.Name + stream.UnhandledMessage + string(respRaw))
+	}
 	switch {
-	case result["topic"] == "notificationApi":
+	case topic == "notificationApi":
 		var notification wsNotification
 		err = json.Unmarshal(respRaw, &notification)
 		if err != nil {
@@ -185,13 +214,16 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Pair:         p,
 			}
 		}
-
-	case strings.Contains(result["topic"].(string), "tradeHistory"):
+	case strings.Contains(topic, "tradeHistory"):
+		if !b.IsSaveTradeDataEnabled() {
+			return nil
+		}
 		var tradeHistory wsTradeHistory
 		err = json.Unmarshal(respRaw, &tradeHistory)
 		if err != nil {
 			return err
 		}
+		var trades []trade.Data
 		for x := range tradeHistory.Data {
 			side := order.Buy
 			if tradeHistory.Data[x].Gain == -1 {
@@ -211,7 +243,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			b.Websocket.DataHandler <- stream.TradeData{
+			trades = append(trades, trade.Data{
 				Timestamp:    time.Unix(0, tradeHistory.Data[x].TransactionTime*int64(time.Millisecond)),
 				CurrencyPair: p,
 				AssetType:    a,
@@ -219,9 +251,11 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				Price:        tradeHistory.Data[x].Price,
 				Amount:       tradeHistory.Data[x].Amount,
 				Side:         side,
-			}
+				TID:          strconv.FormatInt(tradeHistory.Data[x].ID, 10),
+			})
 		}
-	case strings.Contains(result["topic"].(string), "orderBookApi"):
+		return trade.AddTradesToBuffer(b.Name, trades...)
+	case strings.Contains(topic, "orderBookL2Api"):
 		var t wsOrderBook
 		err = json.Unmarshal(respRaw, &t)
 		if err != nil {
@@ -240,6 +274,9 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
+			if b.orderbookFilter(price, amount) {
+				continue
+			}
 			newOB.Asks = append(newOB.Asks, orderbook.Item{
 				Price:  price,
 				Amount: amount,
@@ -256,12 +293,15 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
+			if b.orderbookFilter(price, amount) {
+				continue
+			}
 			newOB.Bids = append(newOB.Bids, orderbook.Item{
 				Price:  price,
 				Amount: amount,
 			})
 		}
-		p, err := currency.NewPairFromString(t.Topic[strings.Index(t.Topic, ":")+1 : strings.Index(t.Topic, "_")])
+		p, err := currency.NewPairFromString(t.Topic[strings.Index(t.Topic, ":")+1 : strings.Index(t.Topic, currency.UnderscoreDelimiter)])
 		if err != nil {
 			return err
 		}
@@ -271,22 +311,39 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		newOB.Pair = p
-		newOB.AssetType = a
-		newOB.ExchangeName = b.Name
+		newOB.Asset = a
+		newOB.Exchange = b.Name
+		newOB.Asks.Reverse() // Reverse asks for correct alignment
+		newOB.VerifyOrderbook = b.CanVerifyOrderbook
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOB)
 		if err != nil {
 			return err
 		}
 	default:
-		b.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: b.Name + stream.UnhandledMessage + string(respRaw)}
-		return nil
+		return errors.New(b.Name + stream.UnhandledMessage + string(respRaw))
 	}
+
 	return nil
+}
+
+// orderbookFilter is needed on book levels from this exchange as their data
+// is incorrect
+func (b *BTSE) orderbookFilter(price, amount float64) bool {
+	// Amount filtering occurs when the amount exceeds the decimal returned.
+	// e.g. {"price":"1.37","size":"0.00"} currency: SFI-ETH
+	// Opted to not round up to 0.01 as this might skew calculations
+	// more than removing from the books completely.
+
+	// Price filtering occurs when we are deep in the bid book and there are
+	// prices that are less than 4 decimal places
+	// e.g. {"price":"0.0000","size":"14219"} currency: TRX-PAX
+	// We cannot load a zero price and this will ruin calculations
+	return price == 0 || amount == 0
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *BTSE) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"orderBookApi:%s_0", "tradeHistory:%s"}
+	var channels = []string{"orderBookL2Api:%s_0", "tradeHistory:%s"}
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err

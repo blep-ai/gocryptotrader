@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -27,6 +28,18 @@ const (
 
 var listenKey string
 
+var (
+	// maxWSUpdateBuffer defines max websocket updates to apply when an
+	// orderbook is initially fetched
+	maxWSUpdateBuffer = 150
+	// maxWSOrderbookJobs defines max websocket orderbook jobs in queue to fetch
+	// an orderbook snapshot via REST
+	maxWSOrderbookJobs = 2000
+	// maxWSOrderbookWorkers defines a max amount of workers allowed to execute
+	// jobs from the job channel
+	maxWSOrderbookWorkers = 10
+)
+
 // WsConnect initiates a websocket connection
 func (b *Binance) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
@@ -34,6 +47,8 @@ func (b *Binance) WsConnect() error {
 	}
 
 	var dialer websocket.Dialer
+	dialer.HandshakeTimeout = b.Config.HTTPTimeout
+	dialer.Proxy = http.ProxyFromEnvironment
 	var err error
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
 		listenKey, err = b.GetWsAuthStreamKey()
@@ -71,25 +86,23 @@ func (b *Binance) WsConnect() error {
 		Delay:             pingDelay,
 	})
 
-	enabledPairs, err := b.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return err
-	}
+	go b.wsReadData()
+	b.setupOrderbookManager()
+	return nil
+}
 
-	for i := range enabledPairs {
-		err = b.SeedLocalCache(enabledPairs[i])
-		if err != nil {
-			return err
+func (b *Binance) setupOrderbookManager() {
+	if b.obm == nil {
+		b.obm = &orderbookManager{
+			state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
+			jobs:  make(chan job, maxWSOrderbookJobs),
+		}
+
+		for i := 0; i < maxWSOrderbookWorkers; i++ {
+			// 10 workers for synchronising book
+			b.SynchroniseWebsocketOrderbook()
 		}
 	}
-
-	go b.wsReadData()
-
-	subs, err := b.GenerateSubscriptions()
-	if err != nil {
-		return err
-	}
-	return b.Websocket.SubscribeToChannels(subs)
 }
 
 // KeepAuthKeyAlive will continuously send messages to
@@ -137,6 +150,13 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
+
+	if r, ok := multiStreamData["result"]; ok {
+		if r == nil {
+			return nil
+		}
+	}
+
 	if method, ok := multiStreamData["method"].(string); ok {
 		// TODO handle subscription handling
 		if strings.EqualFold(method, "subscribe") {
@@ -158,6 +178,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						err)
 				}
 				b.Websocket.DataHandler <- data
+				return nil
 			case "outboundAccountPosition":
 				var data wsAccountPosition
 				err := json.Unmarshal(respRaw, &data)
@@ -167,6 +188,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						err)
 				}
 				b.Websocket.DataHandler <- data
+				return nil
 			case "balanceUpdate":
 				var data wsBalanceUpdate
 				err := json.Unmarshal(respRaw, &data)
@@ -176,6 +198,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						err)
 				}
 				b.Websocket.DataHandler <- data
+				return nil
 			case "executionReport":
 				var data wsOrderUpdate
 				err := json.Unmarshal(respRaw, &data)
@@ -217,6 +240,10 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
+				clientOrderID := data.Data.ClientOrderID
+				if oStatus == order.Cancelled {
+					clientOrderID = data.Data.CancelledClientOrderID
+				}
 				b.Websocket.DataHandler <- &order.Detail{
 					Price:           data.Data.Price,
 					Amount:          data.Data.Quantity,
@@ -228,9 +255,11 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Side:            oSide,
 					Status:          oStatus,
 					AssetType:       a,
-					Date:            time.Unix(0, data.Data.OrderCreationTime*int64(time.Millisecond)),
+					Date:            data.Data.OrderCreationTime,
 					Pair:            p,
+					ClientOrderID:   clientOrderID,
 				}
+				return nil
 			case "listStatus":
 				var data wsListStatus
 				err := json.Unmarshal(respRaw, &data)
@@ -240,6 +269,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						err)
 				}
 				b.Websocket.DataHandler <- data
+				return nil
 			}
 		}
 	}
@@ -264,41 +294,45 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 
 				switch streamType[1] {
 				case "trade":
-					var trade TradeStream
-					err := json.Unmarshal(rawData, &trade)
+					if !b.IsSaveTradeDataEnabled() {
+						return nil
+					}
+					var t TradeStream
+					err := json.Unmarshal(rawData, &t)
 					if err != nil {
 						return fmt.Errorf("%v - Could not unmarshal trade data: %s",
 							b.Name,
 							err)
 					}
 
-					price, err := strconv.ParseFloat(trade.Price, 64)
+					price, err := strconv.ParseFloat(t.Price, 64)
 					if err != nil {
 						return fmt.Errorf("%v - price conversion error: %s",
 							b.Name,
 							err)
 					}
 
-					amount, err := strconv.ParseFloat(trade.Quantity, 64)
+					amount, err := strconv.ParseFloat(t.Quantity, 64)
 					if err != nil {
 						return fmt.Errorf("%v - amount conversion error: %s",
 							b.Name,
 							err)
 					}
 
-					pair, err := currency.NewPairFromFormattedPairs(trade.Symbol, pairs, format)
+					pair, err := currency.NewPairFromFormattedPairs(t.Symbol, pairs, format)
 					if err != nil {
 						return err
 					}
 
-					b.Websocket.DataHandler <- stream.TradeData{
+					return b.AddTradesToBuffer(trade.Data{
 						CurrencyPair: pair,
-						Timestamp:    time.Unix(0, trade.TimeStamp*int64(time.Millisecond)),
+						Timestamp:    t.TimeStamp,
 						Price:        price,
 						Amount:       amount,
 						Exchange:     b.Name,
 						AssetType:    asset.Spot,
-					}
+						TID:          strconv.FormatInt(t.TradeID, 10),
+					})
 				case "ticker":
 					var t TickerStream
 					err := json.Unmarshal(rawData, &t)
@@ -324,10 +358,11 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						Bid:          t.BestBidPrice,
 						Ask:          t.BestAskPrice,
 						Last:         t.LastPrice,
-						LastUpdated:  time.Unix(0, t.EventTime*int64(time.Millisecond)),
+						LastUpdated:  t.EventTime,
 						AssetType:    asset.Spot,
 						Pair:         pair,
 					}
+					return nil
 				case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
 					"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
 					var kline KlineStream
@@ -344,12 +379,12 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					}
 
 					b.Websocket.DataHandler <- stream.KlineData{
-						Timestamp:  time.Unix(0, kline.EventTime*int64(time.Millisecond)),
+						Timestamp:  kline.EventTime,
 						Pair:       pair,
 						AssetType:  asset.Spot,
 						Exchange:   b.Name,
-						StartTime:  time.Unix(0, kline.Kline.StartTime*int64(time.Millisecond)),
-						CloseTime:  time.Unix(0, kline.Kline.CloseTime*int64(time.Millisecond)),
+						StartTime:  kline.Kline.StartTime,
+						CloseTime:  kline.Kline.CloseTime,
 						Interval:   kline.Kline.Interval,
 						OpenPrice:  kline.Kline.OpenPrice,
 						ClosePrice: kline.Kline.ClosePrice,
@@ -357,6 +392,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						LowPrice:   kline.Kline.LowPrice,
 						Volume:     kline.Kline.Volume,
 					}
+					return nil
 				case "depth":
 					var depth WebsocketDepthStream
 					err := json.Unmarshal(rawData, &depth)
@@ -365,13 +401,16 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 							b.Name,
 							err)
 					}
-
-					err = b.UpdateLocalBuffer(&depth)
+					init, err := b.UpdateLocalBuffer(&depth)
 					if err != nil {
+						if init {
+							return nil
+						}
 						return fmt.Errorf("%v - UpdateLocalCache error: %s",
 							b.Name,
 							err)
 					}
+					return nil
 				default:
 					b.Websocket.DataHandler <- stream.UnhandledMessageWarning{
 						Message: b.Name + stream.UnhandledMessage + string(respRaw),
@@ -380,14 +419,14 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			}
 		}
 	}
-	return nil
+	return fmt.Errorf("unhandled stream data %s", string(respRaw))
 }
 
 func stringToOrderStatus(status string) (order.Status, error) {
 	switch status {
 	case "NEW":
 		return order.New, nil
-	case "CANCELLED":
+	case "CANCELED":
 		return order.Cancelled, nil
 	case "REJECTED":
 		return order.Rejected, nil
@@ -402,19 +441,13 @@ func stringToOrderStatus(status string) (order.Status, error) {
 
 // SeedLocalCache seeds depth data
 func (b *Binance) SeedLocalCache(p currency.Pair) error {
-	fPair, err := b.FormatExchangeCurrency(p, asset.Spot)
-	if err != nil {
-		return err
-	}
-
 	ob, err := b.GetOrderBook(OrderBookDataRequestParams{
-		Symbol: fPair.String(),
+		Symbol: p,
 		Limit:  1000,
 	})
 	if err != nil {
 		return err
 	}
-
 	return b.SeedLocalCacheWithBook(p, &ob)
 }
 
@@ -435,105 +468,72 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 	}
 
 	newOrderBook.Pair = p
-	newOrderBook.AssetType = asset.Spot
-	newOrderBook.ExchangeName = b.Name
+	newOrderBook.Asset = asset.Spot
+	newOrderBook.Exchange = b.Name
 	newOrderBook.LastUpdateID = orderbookNew.LastUpdateID
+	newOrderBook.VerifyOrderbook = b.CanVerifyOrderbook
 
 	return b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
 // UpdateLocalBuffer updates and returns the most recent iteration of the orderbook
-func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) error {
+func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 	enabledPairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	format, err := b.GetPairFormat(asset.Spot, true)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	currencyPair, err := currency.NewPairFromFormattedPairs(wsdp.Pair,
 		enabledPairs,
 		format)
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	currentBook := b.Websocket.Orderbook.GetOrderbook(currencyPair, asset.Spot)
-	if currentBook == nil {
-		// Used when a pair/s is enabled while connected
-		err = b.SeedLocalCache(currencyPair)
-		if err != nil {
-			return err
+	err = b.obm.stageWsUpdate(wsdp, currencyPair, asset.Spot)
+	if err != nil {
+		init, err2 := b.obm.checkIsInitialSync(currencyPair)
+		if err2 != nil {
+			return false, err2
 		}
-		currentBook = b.Websocket.Orderbook.GetOrderbook(currencyPair, asset.Spot)
+		return init, err
 	}
 
-	// Drop any event where u is <= lastUpdateId in the snapshot.
-	// The first processed event should have U <= lastUpdateId+1 AND u >= lastUpdateId+1.
-	// While listening to the stream, each new event's U should be equal to the previous event's u+1.
-	if wsdp.LastUpdateID <= currentBook.LastUpdateID {
-		return nil
+	err = b.applyBufferUpdate(currencyPair)
+	if err != nil {
+		b.flushAndCleanup(currencyPair)
 	}
 
-	var updateBid, updateAsk []orderbook.Item
-	for i := range wsdp.UpdateBids {
-		p, err := strconv.ParseFloat(wsdp.UpdateBids[i][0].(string), 64)
-		if err != nil {
-			return err
-		}
-		a, err := strconv.ParseFloat(wsdp.UpdateBids[i][1].(string), 64)
-		if err != nil {
-			return err
-		}
-
-		updateBid = append(updateBid, orderbook.Item{Price: p, Amount: a})
-	}
-
-	for i := range wsdp.UpdateAsks {
-		p, err := strconv.ParseFloat(wsdp.UpdateAsks[i][0].(string), 64)
-		if err != nil {
-			return err
-		}
-		a, err := strconv.ParseFloat(wsdp.UpdateAsks[i][1].(string), 64)
-		if err != nil {
-			return err
-		}
-
-		updateAsk = append(updateAsk, orderbook.Item{Price: p, Amount: a})
-	}
-
-	return b.Websocket.Orderbook.Update(&buffer.Update{
-		Bids:     updateBid,
-		Asks:     updateAsk,
-		Pair:     currencyPair,
-		UpdateID: wsdp.LastUpdateID,
-		Asset:    asset.Spot,
-	})
+	return false, err
 }
 
 // GenerateSubscriptions generates the default subscription set
 func (b *Binance) GenerateSubscriptions() ([]stream.ChannelSubscription, error) {
 	var channels = []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
 	var subscriptions []stream.ChannelSubscription
-	assets := b.GetAssetTypes()
+	assets := b.GetAssetTypes(true)
 	for x := range assets {
-		pairs, err := b.GetEnabledPairs(assets[x])
-		if err != nil {
-			return nil, err
-		}
+		if assets[x] == asset.Spot {
+			pairs, err := b.GetEnabledPairs(assets[x])
+			if err != nil {
+				return nil, err
+			}
 
-		for y := range pairs {
-			for z := range channels {
-				lp := pairs[y].Lower()
-				lp.Delimiter = ""
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  lp.String() + channels[z],
-					Currency: pairs[y],
-					Asset:    assets[x],
-				})
+			for y := range pairs {
+				for z := range channels {
+					lp := pairs[y].Lower()
+					lp.Delimiter = ""
+					subscriptions = append(subscriptions, stream.ChannelSubscription{
+						Channel:  lp.String() + channels[z],
+						Currency: pairs[y],
+						Asset:    assets[x],
+					})
+				}
 			}
 		}
 	}
@@ -545,13 +545,21 @@ func (b *Binance) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 	payload := WsPayload{
 		Method: "SUBSCRIBE",
 	}
-
 	for i := range channelsToSubscribe {
 		payload.Params = append(payload.Params, channelsToSubscribe[i].Channel)
+		if i%50 == 0 && i != 0 {
+			err := b.Websocket.Conn.SendJSONMessage(payload)
+			if err != nil {
+				return err
+			}
+			payload.Params = []string{}
+		}
 	}
-	err := b.Websocket.Conn.SendJSONMessage(payload)
-	if err != nil {
-		return err
+	if len(payload.Params) > 0 {
+		err := b.Websocket.Conn.SendJSONMessage(payload)
+		if err != nil {
+			return err
+		}
 	}
 	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil
@@ -564,11 +572,378 @@ func (b *Binance) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription
 	}
 	for i := range channelsToUnsubscribe {
 		payload.Params = append(payload.Params, channelsToUnsubscribe[i].Channel)
+		if i%50 == 0 && i != 0 {
+			err := b.Websocket.Conn.SendJSONMessage(payload)
+			if err != nil {
+				return err
+			}
+			payload.Params = []string{}
+		}
 	}
-	err := b.Websocket.Conn.SendJSONMessage(payload)
+	if len(payload.Params) > 0 {
+		err := b.Websocket.Conn.SendJSONMessage(payload)
+		if err != nil {
+			return err
+		}
+	}
+	b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	return nil
+}
+
+// ProcessUpdate processes the websocket orderbook update
+func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
+	var updateBid []orderbook.Item
+	for i := range ws.UpdateBids {
+		price, ok := ws.UpdateBids[i][0].(string)
+		if !ok {
+			return errors.New("type assertion failed for bid price")
+		}
+		p, err := strconv.ParseFloat(price, 64)
+		if err != nil {
+			return err
+		}
+		amount, ok := ws.UpdateBids[i][1].(string)
+		if !ok {
+			return errors.New("type assertion failed for bid amount")
+		}
+		a, err := strconv.ParseFloat(amount, 64)
+		if err != nil {
+			return err
+		}
+		updateBid = append(updateBid, orderbook.Item{Price: p, Amount: a})
+	}
+
+	var updateAsk []orderbook.Item
+	for i := range ws.UpdateAsks {
+		price, ok := ws.UpdateAsks[i][0].(string)
+		if !ok {
+			return errors.New("type assertion failed for ask price")
+		}
+		p, err := strconv.ParseFloat(price, 64)
+		if err != nil {
+			return err
+		}
+		amount, ok := ws.UpdateAsks[i][1].(string)
+		if !ok {
+			return errors.New("type assertion failed for ask amount")
+		}
+		a, err := strconv.ParseFloat(amount, 64)
+		if err != nil {
+			return err
+		}
+		updateAsk = append(updateAsk, orderbook.Item{Price: p, Amount: a})
+	}
+
+	return b.Websocket.Orderbook.Update(&buffer.Update{
+		Bids:       updateBid,
+		Asks:       updateAsk,
+		Pair:       cp,
+		UpdateID:   ws.LastUpdateID,
+		UpdateTime: ws.Timestamp,
+		Asset:      a,
+	})
+}
+
+// applyBufferUpdate applies the buffer to the orderbook or initiates a new
+// orderbook sync by the REST protocol which is off handed to go routine.
+func (b *Binance) applyBufferUpdate(pair currency.Pair) error {
+	fetching, err := b.obm.checkIsFetchingBook(pair)
 	if err != nil {
 		return err
 	}
-	b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	if fetching {
+		return nil
+	}
+
+	recent, err := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	if err != nil || (recent.Asks == nil && recent.Bids == nil) {
+		return b.obm.fetchBookViaREST(pair)
+	}
+
+	return b.obm.checkAndProcessUpdate(b.ProcessUpdate, pair, recent)
+}
+
+// SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair
+// asset
+func (b *Binance) SynchroniseWebsocketOrderbook() {
+	b.Websocket.Wg.Add(1)
+	go func() {
+		defer b.Websocket.Wg.Done()
+		for {
+			select {
+			case j := <-b.obm.jobs:
+				err := b.processJob(j.Pair)
+				if err != nil {
+					log.Errorf(log.WebsocketMgr,
+						"%s processing websocket orderbook error %v",
+						b.Name, err)
+				}
+			case <-b.Websocket.ShutdownC:
+				return
+			}
+		}
+	}()
+}
+
+// processJob fetches and processes orderbook updates
+func (b *Binance) processJob(p currency.Pair) error {
+	err := b.SeedLocalCache(p)
+	if err != nil {
+		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
+			p, asset.Spot, err)
+	}
+
+	err = b.obm.stopFetchingBook(p)
+	if err != nil {
+		return err
+	}
+
+	// Immediately apply the buffer updates so we don't wait for a
+	// new update to initiate this.
+	err = b.applyBufferUpdate(p)
+	if err != nil {
+		b.flushAndCleanup(p)
+		return err
+	}
+	return nil
+}
+
+// flushAndCleanup flushes orderbook and clean local cache
+func (b *Binance) flushAndCleanup(p currency.Pair) {
+	errClean := b.Websocket.Orderbook.FlushOrderbook(p, asset.Spot)
+	if errClean != nil {
+		log.Errorf(log.WebsocketMgr,
+			"%s flushing websocket error: %v",
+			b.Name,
+			errClean)
+	}
+	errClean = b.obm.cleanup(p)
+	if errClean != nil {
+		log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v",
+			b.Name,
+			errClean)
+	}
+}
+
+// stageWsUpdate stages websocket update to roll through updates that need to
+// be applied to a fetched orderbook via REST.
+func (o *orderbookManager) stageWsUpdate(u *WebsocketDepthStream, pair currency.Pair, a asset.Item) error {
+	o.Lock()
+	defer o.Unlock()
+	m1, ok := o.state[pair.Base]
+	if !ok {
+		m1 = make(map[currency.Code]map[asset.Item]*update)
+		o.state[pair.Base] = m1
+	}
+
+	m2, ok := m1[pair.Quote]
+	if !ok {
+		m2 = make(map[asset.Item]*update)
+		m1[pair.Quote] = m2
+	}
+
+	state, ok := m2[a]
+	if !ok {
+		state = &update{
+			// 100ms update assuming we might have up to a 10 second delay.
+			// There could be a potential 100 updates for the currency.
+			buffer:       make(chan *WebsocketDepthStream, maxWSUpdateBuffer),
+			fetchingBook: false,
+			initialSync:  true,
+		}
+		m2[a] = state
+	}
+
+	if state.lastUpdateID != 0 && u.FirstUpdateID != state.lastUpdateID+1 {
+		// While listening to the stream, each new event's U should be
+		// equal to the previous event's u+1.
+		return fmt.Errorf("websocket orderbook synchronisation failure for pair %s and asset %s", pair, a)
+	}
+	state.lastUpdateID = u.LastUpdateID
+
+	select {
+	// Put update in the channel buffer to be processed
+	case state.buffer <- u:
+		return nil
+	default:
+		<-state.buffer    // pop one element
+		state.buffer <- u // to shift buffer on fail
+		return fmt.Errorf("channel blockage for %s, asset %s and connection",
+			pair, a)
+	}
+}
+
+// checkIsFetchingBook checks status if the book is currently being via the REST
+// protocol.
+func (o *orderbookManager) checkIsFetchingBook(pair currency.Pair) (bool, error) {
+	o.Lock()
+	defer o.Unlock()
+	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	if !ok {
+		return false,
+			fmt.Errorf("check is fetching book cannot match currency pair %s asset type %s",
+				pair,
+				asset.Spot)
+	}
+	return state.fetchingBook, nil
+}
+
+// stopFetchingBook completes the book fetching.
+func (o *orderbookManager) stopFetchingBook(pair currency.Pair) error {
+	o.Lock()
+	defer o.Unlock()
+	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	if !ok {
+		return fmt.Errorf("could not match pair %s and asset type %s in hash table",
+			pair,
+			asset.Spot)
+	}
+	if !state.fetchingBook {
+		return fmt.Errorf("fetching book already set to false for %s %s",
+			pair,
+			asset.Spot)
+	}
+	state.fetchingBook = false
+	return nil
+}
+
+// completeInitialSync sets if an asset type has completed its initial sync
+func (o *orderbookManager) completeInitialSync(pair currency.Pair) error {
+	o.Lock()
+	defer o.Unlock()
+	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	if !ok {
+		return fmt.Errorf("complete initial sync cannot match currency pair %s asset type %s",
+			pair,
+			asset.Spot)
+	}
+	if !state.initialSync {
+		return fmt.Errorf("initital sync already set to false for %s %s",
+			pair,
+			asset.Spot)
+	}
+	state.initialSync = false
+	return nil
+}
+
+// checkIsInitialSync checks status if the book is Initial Sync being via the REST
+// protocol.
+func (o *orderbookManager) checkIsInitialSync(pair currency.Pair) (bool, error) {
+	o.Lock()
+	defer o.Unlock()
+	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	if !ok {
+		return false,
+			fmt.Errorf("checkIsInitialSync of orderbook cannot match currency pair %s asset type %s",
+				pair,
+				asset.Spot)
+	}
+	return state.initialSync, nil
+}
+
+// fetchBookViaREST pushes a job of fetching the orderbook via the REST protocol
+// to get an initial full book that we can apply our buffered updates too.
+func (o *orderbookManager) fetchBookViaREST(pair currency.Pair) error {
+	o.Lock()
+	defer o.Unlock()
+
+	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	if !ok {
+		return fmt.Errorf("fetch book via rest cannot match currency pair %s asset type %s",
+			pair,
+			asset.Spot)
+	}
+
+	state.initialSync = true
+	state.fetchingBook = true
+
+	select {
+	case o.jobs <- job{pair}:
+		return nil
+	default:
+		return fmt.Errorf("%s %s book synchronisation channel blocked up",
+			pair,
+			asset.Spot)
+	}
+}
+
+func (o *orderbookManager) checkAndProcessUpdate(processor func(currency.Pair, asset.Item, *WebsocketDepthStream) error, pair currency.Pair, recent *orderbook.Base) error {
+	o.Lock()
+	defer o.Unlock()
+	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	if !ok {
+		return fmt.Errorf("could not match pair [%s] asset type [%s] in hash table to process websocket orderbook update",
+			pair, asset.Spot)
+	}
+
+	// This will continuously remove updates from the buffered channel and
+	// apply them to the current orderbook.
+buffer:
+	for {
+		select {
+		case d := <-state.buffer:
+			process, err := state.validate(d, recent)
+			if err != nil {
+				return err
+			}
+			if process {
+				err := processor(pair, asset.Spot, d)
+				if err != nil {
+					return fmt.Errorf("%s %s processing update error: %w",
+						pair, asset.Spot, err)
+				}
+			}
+		default:
+			break buffer
+		}
+	}
+	return nil
+}
+
+// validate checks for correct update alignment
+func (u *update) validate(updt *WebsocketDepthStream, recent *orderbook.Base) (bool, error) {
+	if updt.LastUpdateID <= recent.LastUpdateID {
+		// Drop any event where u is <= lastUpdateId in the snapshot.
+		return false, nil
+	}
+
+	id := recent.LastUpdateID + 1
+	if u.initialSync {
+		// The first processed event should have U <= lastUpdateId+1 AND
+		// u >= lastUpdateId+1.
+		if updt.FirstUpdateID > id || updt.LastUpdateID < id {
+			return false, fmt.Errorf("initial websocket orderbook sync failure for pair %s and asset %s",
+				recent.Pair,
+				asset.Spot)
+		}
+		u.initialSync = false
+	}
+	return true, nil
+}
+
+// cleanup cleans up buffer and reset fetch and init
+func (o *orderbookManager) cleanup(pair currency.Pair) error {
+	o.Lock()
+	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
+	if !ok {
+		o.Unlock()
+		return fmt.Errorf("cleanup cannot match %s %s to hash table",
+			pair,
+			asset.Spot)
+	}
+
+bufferEmpty:
+	for {
+		select {
+		case <-state.buffer:
+			// bleed and discard buffer
+		default:
+			break bufferEmpty
+		}
+	}
+	o.Unlock()
+	// disable rest orderbook synchronisation
+	_ = o.stopFetchingBook(pair)
+	_ = o.completeInitialSync(pair)
 	return nil
 }

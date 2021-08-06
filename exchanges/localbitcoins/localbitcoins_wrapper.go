@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -91,9 +93,13 @@ func (l *LocalBitcoins) SetDefaults() {
 
 	l.Requester = request.New(l.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-
-	l.API.Endpoints.URLDefault = localbitcoinsAPIURL
-	l.API.Endpoints.URL = l.API.Endpoints.URLDefault
+	l.API.Endpoints = l.NewEndpoints()
+	err = l.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot: localbitcoinsAPIURL,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 }
 
 // Setup sets exchange configuration parameters
@@ -211,33 +217,36 @@ func (l *LocalBitcoins) FetchOrderbook(p currency.Pair, assetType asset.Item) (*
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
+	book := &orderbook.Base{
+		Exchange:        l.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: l.CanVerifyOrderbook,
+	}
+
 	orderbookNew, err := l.GetOrderbook(p.Quote.String())
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
 
 	for x := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+		book.Bids = append(book.Bids, orderbook.Item{
 			Amount: orderbookNew.Bids[x].Amount / orderbookNew.Bids[x].Price,
 			Price:  orderbookNew.Bids[x].Price,
 		})
 	}
 
 	for x := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+		book.Asks = append(book.Asks, orderbook.Item{
 			Amount: orderbookNew.Asks[x].Amount / orderbookNew.Asks[x].Price,
 			Price:  orderbookNew.Asks[x].Price,
 		})
 	}
 
-	orderBook.Pair = p
-	orderBook.ExchangeName = l.Name
-	orderBook.AssetType = assetType
-
-	err = orderBook.Process()
+	book.PriceDuplication = true
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
 
 	return orderbook.Get(l.Name, p, assetType)
@@ -245,7 +254,7 @@ func (l *LocalBitcoins) UpdateOrderbook(p currency.Pair, assetType asset.Item) (
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // LocalBitcoins exchange
-func (l *LocalBitcoins) UpdateAccountInfo() (account.Holdings, error) {
+func (l *LocalBitcoins) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = l.Name
 	accountBalance, err := l.GetWalletBalance()
@@ -269,10 +278,10 @@ func (l *LocalBitcoins) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (l *LocalBitcoins) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(l.Name)
+func (l *LocalBitcoins) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(l.Name, assetType)
 	if err != nil {
-		return l.UpdateAccountInfo()
+		return l.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -284,15 +293,59 @@ func (l *LocalBitcoins) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (l *LocalBitcoins) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
+// GetWithdrawalsHistory returns previous withdrawals data
+func (l *LocalBitcoins) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
+}
+
+// GetRecentTrades returns the most recent trades for a currency and asset
+func (l *LocalBitcoins) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	var err error
+	p, err = l.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var tradeData []Trade
+	tradeData, err = l.GetTrades(p.Quote.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	for i := range tradeData {
+		resp = append(resp, trade.Data{
+			Exchange:     l.Name,
+			TID:          strconv.FormatInt(tradeData[i].TID, 10),
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Price:        tradeData[i].Price,
+			Amount:       tradeData[i].Amount,
+			Timestamp:    time.Unix(tradeData[i].Date, 0),
+		})
+	}
+
+	err = l.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Sort(trade.ByDate(resp))
+	return resp, nil
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (l *LocalBitcoins) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
 func (l *LocalBitcoins) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 	var submitOrderResponse order.SubmitResponse
 	if err := s.Validate(); err != nil {
+		return submitOrderResponse, err
+	}
+
+	fPair, err := l.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
 		return submitOrderResponse, err
 	}
 
@@ -305,7 +358,7 @@ func (l *LocalBitcoins) SubmitOrder(s *order.Submit) (order.SubmitResponse, erro
 		City:                       "City",
 		Location:                   "Location",
 		CountryCode:                "US",
-		Currency:                   s.Pair.Quote.String(),
+		Currency:                   fPair.Quote.String(),
 		AccountInfo:                "-",
 		BankName:                   "Bank",
 		MSG:                        s.Side.String(),
@@ -319,7 +372,7 @@ func (l *LocalBitcoins) SubmitOrder(s *order.Submit) (order.SubmitResponse, erro
 	}
 
 	// Does not return any orderID, so create the add, then get the order
-	err := l.CreateAd(&params)
+	err = l.CreateAd(&params)
 	if err != nil {
 		return submitOrderResponse, err
 	}
@@ -366,8 +419,16 @@ func (l *LocalBitcoins) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (l *LocalBitcoins) CancelOrder(order *order.Cancel) error {
-	return l.DeleteAd(order.ID)
+func (l *LocalBitcoins) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
+	return l.DeleteAd(o.ID)
+}
+
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (l *LocalBitcoins) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -391,8 +452,8 @@ func (l *LocalBitcoins) CancelAllOrders(_ *order.Cancel) (order.CancelAllRespons
 	return cancelAllOrdersResponse, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (l *LocalBitcoins) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (l *LocalBitcoins) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
@@ -410,6 +471,9 @@ func (l *LocalBitcoins) GetDepositAddress(cryptocurrency currency.Code, _ string
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (l *LocalBitcoins) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
 	err := l.WalletSend(withdrawRequest.Crypto.Address,
 		withdrawRequest.Amount,
 		withdrawRequest.PIN)
@@ -421,13 +485,13 @@ func (l *LocalBitcoins) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Re
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (l *LocalBitcoins) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (l *LocalBitcoins) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (l *LocalBitcoins) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (l *LocalBitcoins) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -442,6 +506,10 @@ func (l *LocalBitcoins) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, 
 
 // GetActiveOrders retrieves any orders that are active/open
 func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	resp, err := l.GetDashboardInfo()
 	if err != nil {
 		return nil, err
@@ -484,8 +552,8 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime,
+		getOrdersRequest.EndTime)
 	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
 
 	return orders, nil
@@ -494,6 +562,10 @@ func (l *LocalBitcoins) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	var allTrades []DashBoardInfo
 	resp, err := l.GetDashboardCancelledTrades()
 	if err != nil {
@@ -566,8 +638,8 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, getOrdersRequest.StartTicks,
-		getOrdersRequest.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, getOrdersRequest.StartTime,
+		getOrdersRequest.EndTime)
 	order.FilterOrdersBySide(&orders, getOrdersRequest.Side)
 
 	return orders, nil
@@ -575,8 +647,8 @@ func (l *LocalBitcoins) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (l *LocalBitcoins) ValidateCredentials() error {
-	_, err := l.UpdateAccountInfo()
+func (l *LocalBitcoins) ValidateCredentials(assetType asset.Item) error {
+	_, err := l.UpdateAccountInfo(assetType)
 	return l.CheckTransientError(err)
 }
 

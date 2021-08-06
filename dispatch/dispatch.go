@@ -11,6 +11,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// Name is an exported subsystem name
+const Name = "dispatch"
+
 func init() {
 	dispatcher = &Dispatcher{
 		routes: make(map[uuid.UUID][]chan interface{}),
@@ -79,7 +82,7 @@ func SpawnWorker() error {
 // configuration, then spawns workers
 func (d *Dispatcher) start(workers, channelCapacity int) error {
 	if atomic.LoadUint32(&d.running) == 1 {
-		return errors.New(errAlreadyStarted)
+		return errors.New("dispatcher already running")
 	}
 
 	if workers < 1 {
@@ -114,7 +117,7 @@ func (d *Dispatcher) start(workers, channelCapacity int) error {
 // stop stops the service and shuts down all worker routines
 func (d *Dispatcher) stop() error {
 	if !atomic.CompareAndSwapUint32(&d.running, 1, 0) {
-		return errors.New(errCannotShutdown)
+		return errors.New("dispatcher not running")
 	}
 	close(d.shutdown)
 	ch := make(chan struct{})
@@ -153,6 +156,9 @@ func (d *Dispatcher) stop() error {
 
 // isRunning returns if the dispatch system is running
 func (d *Dispatcher) isRunning() bool {
+	if d == nil {
+		return false
+	}
 	return atomic.LoadUint32(&d.running) == 1
 }
 
@@ -176,7 +182,7 @@ func (d *Dispatcher) spawnWorker() error {
 	return nil
 }
 
-// Relayer routine relays communications across the defined routes
+// relayer routine relays communications across the defined routes
 func (d *Dispatcher) relayer(i *sync.WaitGroup) {
 	atomic.AddInt32(&d.count, 1)
 	d.wg.Add(1)

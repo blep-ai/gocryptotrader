@@ -16,6 +16,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -29,8 +31,14 @@ func (a *Alphapoint) SetDefaults() {
 	a.Name = "Alphapoint"
 	a.Enabled = true
 	a.Verbose = true
-	a.API.Endpoints.URL = alphapointDefaultAPIURL
-	a.API.Endpoints.WebsocketURL = alphapointDefaultWebsocketURL
+	a.API.Endpoints = a.NewEndpoints()
+	err := a.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:      alphapointDefaultAPIURL,
+		exchange.WebsocketSpot: alphapointDefaultWebsocketURL,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	a.API.CredentialsValidator.RequiresKey = true
 	a.API.CredentialsValidator.RequiresSecret = true
 
@@ -81,7 +89,7 @@ func (a *Alphapoint) UpdateTradablePairs(forceUpdate bool) error {
 
 // UpdateAccountInfo retrieves balances for all enabled currencies on the
 // Alphapoint exchange
-func (a *Alphapoint) UpdateAccountInfo() (account.Holdings, error) {
+func (a *Alphapoint) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = a.Name
 	acc, err := a.GetAccountInformation()
@@ -113,10 +121,10 @@ func (a *Alphapoint) UpdateAccountInfo() (account.Holdings, error) {
 
 // FetchAccountInfo retrieves balances for all enabled currencies on the
 // Alphapoint exchange
-func (a *Alphapoint) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(a.Name)
+func (a *Alphapoint) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(a.Name, assetType)
 	if err != nil {
-		return a.UpdateAccountInfo()
+		return a.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -179,8 +187,8 @@ func (a *Alphapoint) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*or
 	}
 
 	orderBook.Pair = p
-	orderBook.ExchangeName = a.Name
-	orderBook.AssetType = assetType
+	orderBook.Exchange = a.Name
+	orderBook.Asset = assetType
 
 	err = orderBook.Process()
 	if err != nil {
@@ -206,8 +214,18 @@ func (a *Alphapoint) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (a *Alphapoint) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
+// GetWithdrawalsHistory returns previous withdrawals data
+func (a *Alphapoint) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetRecentTrades returns the most recent trades for a currency and asset
+func (a *Alphapoint) GetRecentTrades(_ currency.Pair, _ asset.Item) ([]trade.Data, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (a *Alphapoint) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -219,7 +237,12 @@ func (a *Alphapoint) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) 
 		return submitOrderResponse, err
 	}
 
-	response, err := a.CreateOrder(s.Pair.String(),
+	fPair, err := a.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
+	response, err := a.CreateOrder(fPair.String(),
 		s.Side.String(),
 		s.Type.String(),
 		s.Amount,
@@ -245,23 +268,34 @@ func (a *Alphapoint) ModifyOrder(_ *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (a *Alphapoint) CancelOrder(order *order.Cancel) error {
-	orderIDInt, err := strconv.ParseInt(order.ID, 10, 64)
+func (a *Alphapoint) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
+	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
 	if err != nil {
 		return err
 	}
-	_, err = a.CancelExistingOrder(orderIDInt, order.AccountID)
+	_, err = a.CancelExistingOrder(orderIDInt, o.AccountID)
 	return err
+}
+
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (a *Alphapoint) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders for a given account
 func (a *Alphapoint) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+	if err := orderCancellation.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
 	return order.CancelAllResponse{},
 		a.CancelAllExistingOrders(orderCancellation.AccountID)
 }
 
-// GetOrderInfo returns information on a current open order
-func (a *Alphapoint) GetOrderInfo(orderID string) (float64, error) {
+// GetOrderInfo returns order information based on order ID
+func (a *Alphapoint) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (float64, error) {
 	orders, err := a.GetOrders()
 	if err != nil {
 		return 0, err
@@ -294,29 +328,32 @@ func (a *Alphapoint) GetDepositAddress(cryptocurrency currency.Code, _ string) (
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *Alphapoint) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (a *Alphapoint) WithdrawCryptocurrencyFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is submitted
-func (a *Alphapoint) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (a *Alphapoint) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (a *Alphapoint) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (string, error) {
+func (a *Alphapoint) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
-func (a *Alphapoint) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
+func (a *Alphapoint) GetFeeByType(_ *exchange.FeeBuilder) (float64, error) {
 	return 0, common.ErrFunctionNotSupported
 }
 
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
 func (a *Alphapoint) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
 	resp, err := a.GetOrders()
 	if err != nil {
 		return nil, err
@@ -351,7 +388,7 @@ func (a *Alphapoint) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	return orders, nil
 }
 
@@ -359,6 +396,10 @@ func (a *Alphapoint) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
 func (a *Alphapoint) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	resp, err := a.GetOrders()
 	if err != nil {
 		return nil, err
@@ -393,13 +434,13 @@ func (a *Alphapoint) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 
 	order.FilterOrdersByType(&orders, req.Type)
 	order.FilterOrdersBySide(&orders, req.Side)
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	return orders, nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (a *Alphapoint) ValidateCredentials() error {
-	_, err := a.UpdateAccountInfo()
+func (a *Alphapoint) ValidateCredentials(assetType asset.Item) error {
+	_, err := a.UpdateAccountInfo(assetType)
 	return a.CheckTransientError(err)
 }

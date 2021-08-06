@@ -115,7 +115,7 @@ type KlinesRequestParams struct {
 	Symbol string // 交易对, zb_qc,zb_usdt,zb_btc...
 	Type   string // K线类型, 1min, 3min, 15min, 30min, 1hour......
 	Since  int64  // 从这个时间戳之后的
-	Size   int    // 返回数据的条数限制(默认为1000，如果返回数据多于1000条，那么只返回1000条)
+	Size   int64  // 返回数据的条数限制(默认为1000，如果返回数据多于1000条，那么只返回1000条)
 }
 
 // KLineResponseData Kline Data
@@ -227,4 +227,14 @@ var WithdrawalFees = map[currency.Code]float64{
 var orderSideMap = map[int64]order.Side{
 	0: order.Buy,
 	1: order.Sell,
+}
+
+// TradeHistory defines a slice of historic trades
+type TradeHistory []struct {
+	Amount    float64 `json:"amount,string"`
+	Date      int64   `json:"date"`
+	Price     float64 `json:"price,string"`
+	Tid       int64   `json:"tid"`
+	TradeType string  `json:"trade_type"`
+	Type      string  `json:"type"`
 }

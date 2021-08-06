@@ -6,6 +6,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // Vars for the ticker package
@@ -36,6 +37,7 @@ type Holdings struct {
 // SubAccount defines a singular account type with asocciated currency balances
 type SubAccount struct {
 	ID         string
+	AssetType  asset.Item
 	Currencies []Balance
 }
 
@@ -44,4 +46,13 @@ type Balance struct {
 	CurrencyName currency.Code
 	TotalValue   float64
 	Hold         float64
+}
+
+// Change defines incoming balance change on currency holdings
+type Change struct {
+	Exchange string
+	Currency currency.Code
+	Asset    asset.Item
+	Amount   float64
+	Account  string
 }

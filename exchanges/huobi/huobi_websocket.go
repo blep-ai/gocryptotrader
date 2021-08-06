@@ -20,11 +20,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
-	baseWSURL = "wss://api.huobi.pro"
+	baseWSURL    = "wss://api.huobi.pro"
+	futuresWSURL = "wss://api.hbdm.com/"
 
 	wsMarketURL    = baseWSURL + "/ws"
 	wsMarketKline  = "market.%s.kline.1min"
@@ -82,11 +84,7 @@ func (h *HUOBI) WsConnect() error {
 	}
 
 	go h.wsReadData()
-	subs, err := h.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return h.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 func (h *HUOBI) wsDial(dialer *websocket.Dialer) error {
@@ -344,35 +342,40 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			Interval:   data[3],
 		}
 	case strings.Contains(init.Channel, "trade.detail"):
-		var trade WsTrade
-		err := json.Unmarshal(respRaw, &trade)
+		if !h.IsSaveTradeDataEnabled() {
+			return nil
+		}
+		var t WsTrade
+		err := json.Unmarshal(respRaw, &t)
 		if err != nil {
 			return err
 		}
-		data := strings.Split(trade.Channel, ".")
+		data := strings.Split(t.Channel, ".")
 		var p currency.Pair
 		var a asset.Item
 		p, a, err = h.GetRequestFormattedPairAndAssetType(data[1])
 		if err != nil {
 			return err
 		}
-
-		for i := range trade.Tick.Data {
+		var trades []trade.Data
+		for i := range t.Tick.Data {
 			side := order.Buy
-			if trade.Tick.Data[i].Direction != "buy" {
+			if t.Tick.Data[i].Direction != "buy" {
 				side = order.Sell
 			}
-			h.Websocket.DataHandler <- stream.TradeData{
+			trades = append(trades, trade.Data{
 				Exchange:     h.Name,
 				AssetType:    a,
 				CurrencyPair: p,
 				Timestamp: time.Unix(0,
-					trade.Tick.Data[i].Timestamp*int64(time.Millisecond)),
-				Amount: trade.Tick.Data[i].Amount,
-				Price:  trade.Tick.Data[i].Price,
+					t.Tick.Data[i].Timestamp*int64(time.Millisecond)),
+				Amount: t.Tick.Data[i].Amount,
+				Price:  t.Tick.Data[i].Price,
 				Side:   side,
-			}
+				TID:    strconv.FormatFloat(t.Tick.Data[i].TradeID, 'f', -1, 64),
+			})
 		}
+		return trade.AddTradesToBuffer(h.Name, trades...)
 	case strings.Contains(init.Channel, "detail"),
 		strings.Contains(init.Rep, "detail"):
 		var wsTicker WsTick
@@ -461,8 +464,9 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
 	newOrderBook.Pair = p
-	newOrderBook.AssetType = asset.Spot
-	newOrderBook.ExchangeName = h.Name
+	newOrderBook.Asset = asset.Spot
+	newOrderBook.Exchange = h.Name
+	newOrderBook.VerifyOrderbook = h.CanVerifyOrderbook
 
 	return h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }

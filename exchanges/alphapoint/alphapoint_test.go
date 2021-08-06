@@ -2,14 +2,15 @@ package alphapoint
 
 import (
 	"encoding/json"
-	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -28,12 +29,6 @@ func TestMain(m *testing.M) {
 	a.API.Credentials.Key = apiKey
 	a.API.Credentials.Secret = apiSecret
 	a.API.AuthenticatedSupport = true
-	if a.API.Endpoints.URL != "https://sim3.alphapoint.com:8400" {
-		log.Fatal("SetDefaults: String Incorrect -", a.API.Endpoints.URL)
-	}
-	if a.API.Endpoints.WebsocketURL != "wss://sim3.alphapoint.com:8401/v1/GetTicker/" {
-		log.Fatal("SetDefaults: String Incorrect -", a.API.Endpoints.WebsocketURL)
-	}
 	os.Exit(m.Run())
 }
 
@@ -325,7 +320,7 @@ func TestGetAccountInfo(t *testing.T) {
 		t.Skip("API keys not set, skipping")
 	}
 
-	_, err := a.UpdateAccountInfo()
+	_, err := a.UpdateAccountInfo(asset.Spot)
 	if err == nil {
 		t.Error("GetUserInfo() Expected error")
 	}
@@ -439,7 +434,8 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := a.GetActiveOrders(&getOrdersRequest)
@@ -453,7 +449,8 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := a.GetOrderHistory(&getOrdersRequest)
@@ -479,11 +476,12 @@ func TestSubmitOrder(t *testing.T) {
 			Base:      currency.BTC,
 			Quote:     currency.USD,
 		},
-		Side:     order.Buy,
-		Type:     order.Limit,
-		Price:    1,
-		Amount:   1,
-		ClientID: "meowOrder",
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     1,
+		Amount:    1,
+		ClientID:  "meowOrder",
+		AssetType: asset.Spot,
 	}
 
 	response, err := a.SubmitOrder(orderSubmission)
@@ -511,6 +509,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
+		AssetType:     asset.Spot,
 	}
 
 	err := a.CancelOrder(orderCancellation)
@@ -534,6 +533,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
+		AssetType:     asset.Spot,
 	}
 
 	resp, err := a.CancelAllOrders(orderCancellation)
@@ -554,7 +554,7 @@ func TestModifyOrder(t *testing.T) {
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := a.ModifyOrder(&order.Modify{})
+	_, err := a.ModifyOrder(&order.Modify{AssetType: asset.Spot})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
 	}
@@ -589,5 +589,29 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	_, err := a.WithdrawFiatFundsToInternationalBank(&withdraw.Request{})
 	if err != common.ErrNotYetImplemented {
 		t.Errorf("Expected '%v', received: '%v'", common.ErrNotYetImplemented, err)
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("btc_usdt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = a.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil && err != common.ErrNotYetImplemented {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("btc_usdt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = a.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil && err != common.ErrNotYetImplemented {
+		t.Error(err)
 	}
 }

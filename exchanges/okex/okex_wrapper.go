@@ -3,22 +3,23 @@ package okex
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okgroup"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -194,10 +195,14 @@ func (o *OKEX) SetDefaults() {
 		// TODO: Specify each individual endpoint rate limits as per docs
 		request.WithLimiter(request.NewBasicRateLimit(okExRateInterval, okExRequestRate)),
 	)
-
-	o.API.Endpoints.URLDefault = okExAPIURL
-	o.API.Endpoints.URL = okExAPIURL
-	o.API.Endpoints.WebsocketURL = OkExWebsocketURL
+	o.API.Endpoints = o.NewEndpoints()
+	err = o.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:      okExAPIURL,
+		exchange.WebsocketSpot: OkExWebsocketURL,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	o.Websocket = stream.New()
 	o.APIVersion = okExAPIVersion
 	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -217,11 +222,15 @@ func (o *OKEX) Start(wg *sync.WaitGroup) {
 // Run implements the OKEX wrapper
 func (o *OKEX) Run() {
 	if o.Verbose {
+		wsEndpoint, err := o.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			log.Error(log.ExchangeSys, err)
+		}
 		log.Debugf(log.ExchangeSys,
 			"%s Websocket: %s. (url: %s).\n",
 			o.Name,
 			common.IsEnabled(o.Websocket.IsEnabled()),
-			o.API.Endpoints.WebsocketURL)
+			wsEndpoint)
 	}
 
 	format, err := o.GetPairFormat(asset.Spot, false)
@@ -352,7 +361,7 @@ func (o *OKEX) FetchTradablePairs(i asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (o *OKEX) UpdateTradablePairs(forceUpdate bool) error {
-	assets := o.CurrencyPairs.GetAssetTypes()
+	assets := o.CurrencyPairs.GetAssetTypes(false)
 	for x := range assets {
 		if assets[x] == asset.Index {
 			// Update from futures
@@ -534,159 +543,114 @@ func (o *OKEX) FetchTicker(p currency.Pair, assetType asset.Item) (tickerData *t
 	if assetType == asset.Index {
 		return tickerData, errors.New("ticker fetching not supported for index")
 	}
-	tickerData, err = ticker.GetTicker(o.Name, p, assetType)
+	fPair, err := o.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return o.UpdateTicker(p, assetType)
+		return nil, err
+	}
+
+	tickerData, err = ticker.GetTicker(o.Name, fPair, assetType)
+	if err != nil {
+		return o.UpdateTicker(fPair, assetType)
 	}
 	return
 }
 
-// GetHistoricCandles returns candles between a time period for a set time interval
-func (o *OKEX) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !o.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
-	}
-
-	formattedPair, err := o.FormatExchangeCurrency(pair, a)
+// GetRecentTrades returns recent trade data
+func (o *OKEX) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	var err error
+	p, err = o.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
+	}
+	var resp []trade.Data
+	var side order.Side
+	switch assetType {
+	case asset.Spot:
+		var tradeData []okgroup.GetSpotFilledOrdersInformationResponse
+		tradeData, err = o.GetSpotFilledOrdersInformation(okgroup.GetSpotFilledOrdersInformationRequest{
+			InstrumentID: p.String(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData {
+			side, err = order.StringToOrderSide(tradeData[i].Side)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     o.Name,
+				TID:          tradeData[i].TradeID,
+				CurrencyPair: p,
+				Side:         side,
+				AssetType:    assetType,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Size,
+				Timestamp:    tradeData[i].Timestamp,
+			})
+		}
+	case asset.Futures:
+		var tradeData []okgroup.GetFuturesFilledOrdersResponse
+		tradeData, err = o.GetFuturesFilledOrder(okgroup.GetFuturesFilledOrderRequest{
+			InstrumentID: p.String(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData {
+			side, err = order.StringToOrderSide(tradeData[i].Side)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     o.Name,
+				TID:          tradeData[i].TradeID,
+				CurrencyPair: p,
+				Side:         side,
+				AssetType:    assetType,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Qty,
+				Timestamp:    tradeData[i].Timestamp,
+			})
+		}
+	case asset.PerpetualSwap:
+		var tradeData []okgroup.GetSwapFilledOrdersDataResponse
+		tradeData, err = o.GetSwapFilledOrdersData(&okgroup.GetSwapFilledOrdersDataRequest{
+			InstrumentID: p.String(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData {
+			side, err = order.StringToOrderSide(tradeData[i].Side)
+			if err != nil {
+				return nil, err
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     o.Name,
+				TID:          tradeData[i].TradeID,
+				CurrencyPair: p,
+				Side:         side,
+				AssetType:    assetType,
+				Price:        tradeData[i].Price,
+				Amount:       tradeData[i].Size,
+				Timestamp:    tradeData[i].Timestamp,
+			})
+		}
+	default:
+		return nil, fmt.Errorf("%s asset type %v unsupported", o.Name, assetType)
 	}
 
-	req := &okgroup.GetMarketDataRequest{
-		Asset:        a,
-		Start:        start.UTC().Format(time.RFC3339),
-		End:          end.UTC().Format(time.RFC3339),
-		Granularity:  o.FormatExchangeKlineInterval(interval),
-		InstrumentID: formattedPair.String(),
-	}
-
-	candles, err := o.GetMarketData(req)
+	err = o.AddTradesToBuffer(resp...)
 	if err != nil {
-		return kline.Item{}, err
+		return nil, err
 	}
 
-	ret := kline.Item{
-		Exchange: o.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
-	}
-
-	for x := range candles {
-		t := candles[x].([]interface{})
-		tempCandle := kline.Candle{}
-		v, ok := t[0].(string)
-		if !ok {
-			return kline.Item{}, errors.New("unexpected value received")
-		}
-		tempCandle.Time, err = time.Parse(time.RFC3339, v)
-		if err != nil {
-			return kline.Item{}, err
-		}
-		tempCandle.Open, err = convert.FloatFromString(t[1])
-		if err != nil {
-			return kline.Item{}, err
-		}
-		tempCandle.High, err = convert.FloatFromString(t[2])
-		if err != nil {
-			return kline.Item{}, err
-		}
-
-		tempCandle.Low, err = convert.FloatFromString(t[3])
-		if err != nil {
-			return kline.Item{}, err
-		}
-
-		tempCandle.Close, err = convert.FloatFromString(t[4])
-		if err != nil {
-			return kline.Item{}, err
-		}
-
-		tempCandle.Volume, err = convert.FloatFromString(t[5])
-		if err != nil {
-			return kline.Item{}, err
-		}
-		ret.Candles = append(ret.Candles, tempCandle)
-	}
-
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+	sort.Sort(trade.ByDate(resp))
+	return resp, nil
 }
 
-// GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (o *OKEX) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !o.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
-	}
-
-	ret := kline.Item{
-		Exchange: o.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
-	}
-
-	dates := kline.CalcDateRanges(start, end, interval, o.Features.Enabled.Kline.ResultLimit)
-	formattedPair, err := o.FormatExchangeCurrency(pair, a)
-	if err != nil {
-		return kline.Item{}, err
-	}
-	for x := range dates {
-		req := &okgroup.GetMarketDataRequest{
-			Asset:        a,
-			Start:        dates[x].Start.UTC().Format(time.RFC3339),
-			End:          dates[x].End.UTC().Format(time.RFC3339),
-			Granularity:  o.FormatExchangeKlineInterval(interval),
-			InstrumentID: formattedPair.String(),
-		}
-
-		candles, err := o.GetMarketData(req)
-		if err != nil {
-			return kline.Item{}, err
-		}
-
-		for i := range candles {
-			t := candles[i].([]interface{})
-			tempCandle := kline.Candle{}
-			v, ok := t[0].(string)
-			if !ok {
-				return kline.Item{}, errors.New("unexpected value received")
-			}
-			tempCandle.Time, err = time.Parse(time.RFC3339, v)
-			if err != nil {
-				return kline.Item{}, err
-			}
-			tempCandle.Open, err = convert.FloatFromString(t[1])
-			if err != nil {
-				return kline.Item{}, err
-			}
-			tempCandle.High, err = convert.FloatFromString(t[2])
-			if err != nil {
-				return kline.Item{}, err
-			}
-
-			tempCandle.Low, err = convert.FloatFromString(t[3])
-			if err != nil {
-				return kline.Item{}, err
-			}
-
-			tempCandle.Close, err = convert.FloatFromString(t[4])
-			if err != nil {
-				return kline.Item{}, err
-			}
-
-			tempCandle.Volume, err = convert.FloatFromString(t[5])
-			if err != nil {
-				return kline.Item{}, err
-			}
-			ret.Candles = append(ret.Candles, tempCandle)
-		}
-	}
-
-	ret.SortCandlesByTimestamp(false)
-	return ret, nil
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (o *OKEX) CancelBatchOrders(_ []order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }

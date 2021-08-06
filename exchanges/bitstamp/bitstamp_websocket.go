@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -39,12 +40,8 @@ func (b *Bitstamp) WsConnect() error {
 	if err != nil {
 		b.Websocket.DataHandler <- err
 	}
-	subs, err := b.generateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
 	go b.wsReadData()
-	return b.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -91,7 +88,7 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		currencyPair := strings.Split(wsResponse.Channel, "_")
+		currencyPair := strings.Split(wsResponse.Channel, currency.UnderscoreDelimiter)
 		p, err := currency.NewPairFromString(strings.ToUpper(currencyPair[2]))
 		if err != nil {
 			return err
@@ -102,19 +99,22 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	case "trade":
+		if !b.IsSaveTradeDataEnabled() {
+			return nil
+		}
 		wsTradeTemp := websocketTradeResponse{}
 		err := json.Unmarshal(respRaw, &wsTradeTemp)
 		if err != nil {
 			return err
 		}
-		currencyPair := strings.Split(wsResponse.Channel, "_")
+		currencyPair := strings.Split(wsResponse.Channel, currency.UnderscoreDelimiter)
 		p, err := currency.NewPairFromString(strings.ToUpper(currencyPair[2]))
 		if err != nil {
 			return err
 		}
 
 		side := order.Buy
-		if wsTradeTemp.Data.Type == -1 {
+		if wsTradeTemp.Data.Type == 1 {
 			side = order.Sell
 		}
 		var a asset.Item
@@ -122,16 +122,16 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		b.Websocket.DataHandler <- stream.TradeData{
+		return trade.AddTradesToBuffer(b.Name, trade.Data{
 			Timestamp:    time.Unix(wsTradeTemp.Data.Timestamp, 0),
 			CurrencyPair: p,
 			AssetType:    a,
 			Exchange:     b.Name,
-			EventType:    order.UnknownType,
 			Price:        wsTradeTemp.Data.Price,
 			Amount:       wsTradeTemp.Data.Amount,
 			Side:         side,
-		}
+			TID:          strconv.FormatInt(wsTradeTemp.Data.ID, 10),
+		})
 	case "order_created", "order_deleted", "order_changed":
 		if b.Verbose {
 			log.Debugf(log.ExchangeSys, "%v - Websocket order acknowledgement", b.Name)
@@ -208,7 +208,7 @@ func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscriptio
 
 func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair, assetType asset.Item) error {
 	if len(update.Asks) == 0 && len(update.Bids) == 0 {
-		return errors.New("bitstamp_websocket.go error - no orderbook data")
+		return errors.New("no orderbook data")
 	}
 	var asks, bids []orderbook.Item
 	for i := range update.Asks {
@@ -239,12 +239,13 @@ func (b *Bitstamp) wsUpdateOrderbook(update websocketOrderBook, p currency.Pair,
 		bids = append(bids, orderbook.Item{Price: target, Amount: amount})
 	}
 	return b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-		Bids:         bids,
-		Asks:         asks,
-		Pair:         p,
-		LastUpdated:  time.Unix(update.Timestamp, 0),
-		AssetType:    assetType,
-		ExchangeName: b.Name,
+		Bids:            bids,
+		Asks:            asks,
+		Pair:            p,
+		LastUpdated:     time.Unix(update.Timestamp, 0),
+		Asset:           assetType,
+		Exchange:        b.Name,
+		VerifyOrderbook: b.CanVerifyOrderbook,
 	})
 }
 
@@ -274,8 +275,9 @@ func (b *Bitstamp) seedOrderBook() error {
 			})
 		}
 		newOrderBook.Pair = p[x]
-		newOrderBook.AssetType = asset.Spot
-		newOrderBook.ExchangeName = b.Name
+		newOrderBook.Asset = asset.Spot
+		newOrderBook.Exchange = b.Name
+		newOrderBook.VerifyOrderbook = b.CanVerifyOrderbook
 
 		err = b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {

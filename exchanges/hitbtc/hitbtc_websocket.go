@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -49,11 +50,7 @@ func (h *HitBTC) WsConnect() error {
 		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", h.Name, err)
 	}
 
-	subs, err := h.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return h.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -89,7 +86,7 @@ func (h *HitBTC) wsGetTableName(respRaw []byte) (string, error) {
 		}
 	}
 	if init.Error.Message != "" || init.Error.Code != 0 {
-		return "", fmt.Errorf("hitbtc.go error - Code: %d, Message: %s",
+		return "", fmt.Errorf("code: %d, Message: %s",
 			init.Error.Code,
 			init.Error.Message)
 	}
@@ -194,18 +191,43 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-	case "snapshotTrades":
+	case "snapshotTrades", "updateTrades":
+		if !h.IsSaveTradeDataEnabled() {
+			return nil
+		}
 		var tradeSnapshot WsTrade
 		err := json.Unmarshal(respRaw, &tradeSnapshot)
 		if err != nil {
 			return err
 		}
-	case "updateTrades":
-		var tradeUpdates WsTrade
-		err := json.Unmarshal(respRaw, &tradeUpdates)
+		var trades []trade.Data
+		p, err := currency.NewPairFromString(tradeSnapshot.Params.Symbol)
 		if err != nil {
-			return err
+			return &order.ClassificationError{
+				Exchange: h.Name,
+				Err:      err,
+			}
 		}
+		for i := range tradeSnapshot.Params.Data {
+			side, err := order.StringToOrderSide(tradeSnapshot.Params.Data[i].Side)
+			if err != nil {
+				return &order.ClassificationError{
+					Exchange: h.Name,
+					Err:      err,
+				}
+			}
+			trades = append(trades, trade.Data{
+				Timestamp:    tradeSnapshot.Params.Data[i].Timestamp,
+				Exchange:     h.Name,
+				CurrencyPair: p,
+				AssetType:    asset.Spot,
+				Price:        tradeSnapshot.Params.Data[i].Price,
+				Amount:       tradeSnapshot.Params.Data[i].Quantity,
+				Side:         side,
+				TID:          strconv.FormatInt(tradeSnapshot.Params.Data[i].ID, 10),
+			})
+		}
+		return trade.AddTradesToBuffer(h.Name, trades...)
 	case "activeOrders":
 		var o wsActiveOrdersResponse
 		err := json.Unmarshal(respRaw, &o)
@@ -270,7 +292,7 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 // WsProcessOrderbookSnapshot processes a full orderbook snapshot to a local cache
 func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 	if len(ob.Params.Bid) == 0 || len(ob.Params.Ask) == 0 {
-		return errors.New("hitbtc.go error - no orderbooks to process")
+		return errors.New("no orderbooks to process")
 	}
 
 	var newOrderBook orderbook.Base
@@ -305,9 +327,10 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob WsOrderbook) error {
 		h.Websocket.DataHandler <- err
 		return err
 	}
-	newOrderBook.AssetType = asset.Spot
+	newOrderBook.Asset = asset.Spot
 	newOrderBook.Pair = p
-	newOrderBook.ExchangeName = h.Name
+	newOrderBook.Exchange = h.Name
+	newOrderBook.VerifyOrderbook = h.CanVerifyOrderbook
 
 	return h.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }

@@ -35,13 +35,13 @@ type Exchange interface {
 	Orderbook(exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error)
 	Ticker(exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error)
 	Pairs(exch string, enabledOnly bool, item asset.Item) (*currency.Pairs, error)
-	QueryOrder(exch, orderid string) (*order.Detail, error)
+	QueryOrder(exch, orderid string, pair currency.Pair, assetType asset.Item) (*order.Detail, error)
 	SubmitOrder(submit *order.Submit) (*order.SubmitResponse, error)
-	CancelOrder(exch, orderid string) (bool, error)
-	AccountInformation(exch string) (account.Holdings, error)
+	CancelOrder(exch, orderid string, pair currency.Pair, item asset.Item) (bool, error)
+	AccountInformation(exch string, assetType asset.Item) (account.Holdings, error)
 	DepositAddress(exch string, currencyCode currency.Code) (string, error)
-	WithdrawalFiatFunds(exch, bankAccountID string, request *withdraw.Request) (out string, err error)
-	WithdrawalCryptoFunds(exch string, request *withdraw.Request) (out string, err error)
+	WithdrawalFiatFunds(bankAccountID string, request *withdraw.Request) (out string, err error)
+	WithdrawalCryptoFunds(request *withdraw.Request) (out string, err error)
 	OHLCV(exch string, pair currency.Pair, item asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error)
 }
 

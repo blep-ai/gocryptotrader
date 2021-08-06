@@ -34,7 +34,8 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Binance setup error", err)
 	}
+	b.setupOrderbookManager()
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	log.Printf(sharedtestvalues.LiveTesting, b.Name, b.API.Endpoints.URL)
+	log.Printf(sharedtestvalues.LiveTesting, b.Name)
 	os.Exit(m.Run())
 }

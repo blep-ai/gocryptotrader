@@ -1,5 +1,5 @@
 run:
-  timeout: 1m30s
+  timeout: 2m30s
   issues-exit-code: 1
   tests: true
   skip-dirs:
@@ -23,22 +23,31 @@ linters:
 #   - varcheck
 
 # disabled by default linters
+    - asciicheck
     - bodyclose
     - depguard
     - dogsled
 #   - dupl
+#   - exhaustive
+    - exportloopref
 #   - funlen
+    - gci
 #   - gochecknoglobals
 #   - gochecknoinits
 #   - gocognit
     - goconst
     - gocritic
 #   - gocyclo
+#   - godot
 #   - godox
+#   - goerr113
     - gofmt
+#   - gofumpt
+    - goheader
     - goimports
     - golint
 #   - gomnd
+    - gomodguard
     - goprintffuncname
     - gosec
 #   - interfacer
@@ -46,10 +55,16 @@ linters:
 #   - maligned
     - misspell
     - nakedret
+#   - nestif
+#   - nlreturn
+#   - noctx
+    - nolintlint
 #   - prealloc
     - rowserrcheck
     - scopelint
+    - sqlclosecheck
     - stylecheck
+#   - testpackage
     - unconvert
     - unparam
     - whitespace
@@ -82,9 +97,15 @@ issues:
   max-same-issues: 0
 
   exclude-rules:
-    - text: "weak cryptographic primitive"
-      linters:
-        - gosec
     - text: "Expect WriteFile permissions to be 0600 or less"
       linters:
         - gosec
+
+  # List of regexps of issue texts to exclude, empty list by default.
+  # But independently from this option we use default exclude patterns,
+  # it can be disabled by `exclude-use-default: false`. To list all
+  # excluded by default patterns execute `golangci-lint run --help`
+  exclude:
+    # The following silences false positives in table tests
+    #   https://github.com/kyoh86/scopelint/issues/4
+     - Using the variable on range scope `ti` in function literal

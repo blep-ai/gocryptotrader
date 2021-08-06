@@ -102,7 +102,7 @@ func (b *BTCMarkets) GetTrades(marketID string, before, after, limit int64) ([]T
 	if before > 0 {
 		params.Set("before", strconv.FormatInt(before, 10))
 	}
-	if after >= 0 {
+	if after > 0 {
 		params.Set("after", strconv.FormatInt(after, 10))
 	}
 	if limit > 0 {
@@ -670,8 +670,8 @@ func (b *BTCMarkets) GetBatchTrades(ids []string) (BatchTradeResponse, error) {
 		request.Auth)
 }
 
-// CancelBatchOrders cancels given ids
-func (b *BTCMarkets) CancelBatchOrders(ids []string) (BatchCancelResponse, error) {
+// CancelBatch cancels given ids
+func (b *BTCMarkets) CancelBatch(ids []string) (BatchCancelResponse, error) {
 	var resp BatchCancelResponse
 	marketIDs := strings.Join(ids, ",")
 	return resp, b.SendAuthenticatedRequest(http.MethodDelete,
@@ -696,8 +696,7 @@ func (b *BTCMarkets) SendHTTPRequest(path string, result interface{}) error {
 // SendAuthenticatedRequest sends an authenticated HTTP request
 func (b *BTCMarkets) SendAuthenticatedRequest(method, path string, data, result interface{}, f request.EndpointLimit) (err error) {
 	if !b.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet,
-			b.Name)
+		return fmt.Errorf("%s %w", b.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 
 	now := time.Now()

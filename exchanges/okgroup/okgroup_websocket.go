@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -146,7 +147,6 @@ const (
 	allowableIterations = 25
 	delimiterColon      = ":"
 	delimiterDash       = "-"
-	delimiterUnderscore = "_"
 
 	maxConnByteLen = 4096
 )
@@ -203,11 +203,7 @@ func (o *OKGroup) WsConnect() error {
 		}
 	}
 
-	subs, err := o.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return o.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // WsLogin sends a login request to websocket to enable access to authenticated endpoints
@@ -410,7 +406,7 @@ func (o *OKGroup) wsProcessTickers(respRaw []byte) error {
 		case asset.Futures, asset.PerpetualSwap:
 			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1],
 				f[2],
-				delimiterUnderscore)
+				currency.UnderscoreDelimiter)
 		default:
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
@@ -447,6 +443,9 @@ func (o *OKGroup) wsProcessTickers(respRaw []byte) error {
 
 // wsProcessTrades converts trade data and sends it to the datahandler
 func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
+	if !o.IsSaveTradeDataEnabled() {
+		return nil
+	}
 	var response WebsocketTradeResponse
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
@@ -454,6 +453,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 	}
 
 	a := o.GetAssetTypeFromTableName(response.Table)
+	var trades []trade.Data
 	for i := range response.Data {
 		f := strings.Split(response.Data[i].InstrumentID, delimiterDash)
 
@@ -462,7 +462,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 		case asset.Futures, asset.PerpetualSwap:
 			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1],
 				f[2],
-				delimiterUnderscore)
+				currency.UnderscoreDelimiter)
 		default:
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
@@ -479,8 +479,7 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 		if response.Data[i].Quantity != 0 {
 			amount = response.Data[i].Quantity
 		}
-
-		o.Websocket.DataHandler <- stream.TradeData{
+		trades = append(trades, trade.Data{
 			Amount:       amount,
 			AssetType:    o.GetAssetTypeFromTableName(response.Table),
 			CurrencyPair: c,
@@ -488,9 +487,10 @@ func (o *OKGroup) wsProcessTrades(respRaw []byte) error {
 			Price:        response.Data[i].Price,
 			Side:         tSide,
 			Timestamp:    response.Data[i].Timestamp,
-		}
+			TID:          response.Data[i].TradeID,
+		})
 	}
-	return nil
+	return trade.AddTradesToBuffer(o.Name, trades...)
 }
 
 // wsProcessCandles converts candle data and sends it to the data handler
@@ -510,7 +510,7 @@ func (o *OKGroup) wsProcessCandles(respRaw []byte) error {
 		case asset.Futures, asset.PerpetualSwap:
 			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1],
 				f[2],
-				delimiterUnderscore)
+				currency.UnderscoreDelimiter)
 		default:
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
@@ -576,7 +576,7 @@ func (o *OKGroup) WsProcessOrderBook(respRaw []byte) error {
 		case asset.Futures, asset.PerpetualSwap:
 			c = currency.NewPairWithDelimiter(f[0]+delimiterDash+f[1],
 				f[2],
-				delimiterUnderscore)
+				currency.UnderscoreDelimiter)
 		default:
 			c = currency.NewPairWithDelimiter(f[0], f[1], delimiterDash)
 		}
@@ -679,12 +679,13 @@ func (o *OKGroup) WsProcessPartialOrderBook(wsEventData *WebsocketOrderBook, ins
 	}
 
 	newOrderBook := orderbook.Base{
-		Asks:         asks,
-		Bids:         bids,
-		AssetType:    a,
-		LastUpdated:  wsEventData.Timestamp,
-		Pair:         instrument,
-		ExchangeName: o.Name,
+		Asks:            asks,
+		Bids:            bids,
+		Asset:           a,
+		LastUpdated:     wsEventData.Timestamp,
+		Pair:            instrument,
+		Exchange:        o.Name,
+		VerifyOrderbook: o.CanVerifyOrderbook,
 	}
 	return o.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
@@ -714,7 +715,10 @@ func (o *OKGroup) WsProcessUpdateOrderbook(wsEventData *WebsocketOrderBook, inst
 		return err
 	}
 
-	updatedOb := o.Websocket.Orderbook.GetOrderbook(instrument, a)
+	updatedOb, err := o.Websocket.Orderbook.GetOrderbook(instrument, a)
+	if err != nil {
+		return err
+	}
 	checksum := o.CalculateUpdateOrderbookChecksum(updatedOb)
 
 	if checksum != wsEventData.Checksum {
@@ -779,7 +783,7 @@ func (o *OKGroup) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base
 // handled by ManageSubscriptions()
 func (o *OKGroup) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
-	assets := o.GetAssetTypes()
+	assets := o.GetAssetTypes(true)
 	for x := range assets {
 		pairs, err := o.GetEnabledPairs(assets[x])
 		if err != nil {

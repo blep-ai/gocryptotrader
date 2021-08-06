@@ -87,6 +87,7 @@ func SetupSubLoggers(s []SubLoggerConfig) {
 
 // SetupGlobalLogger setup the global loggers with the default global config values
 func SetupGlobalLogger() {
+	RWM.Lock()
 	if FileLoggingConfiguredCorrectly {
 		GlobalLogFile = &Rotate{
 			FileName: GlobalLogConfig.LoggerFileConfig.FileName,
@@ -101,6 +102,7 @@ func SetupGlobalLogger() {
 	}
 
 	logger = newLogger(GlobalLogConfig)
+	RWM.Unlock()
 }
 
 func splitLevel(level string) (l Levels) {
@@ -120,8 +122,8 @@ func splitLevel(level string) (l Levels) {
 	return
 }
 
-func registerNewSubLogger(logger string) *subLogger {
-	temp := subLogger{
+func registerNewSubLogger(logger string) *SubLogger {
+	temp := SubLogger{
 		name:   strings.ToUpper(logger),
 		output: os.Stdout,
 	}
@@ -137,9 +139,12 @@ func init() {
 	Global = registerNewSubLogger("LOG")
 
 	ConnectionMgr = registerNewSubLogger("CONNECTION")
+	BackTester = registerNewSubLogger("BACKTESTER")
 	CommunicationMgr = registerNewSubLogger("COMMS")
+	APIServerMgr = registerNewSubLogger("API")
 	ConfigMgr = registerNewSubLogger("CONFIG")
 	DatabaseMgr = registerNewSubLogger("DATABASE")
+	DataHistory = registerNewSubLogger("DATAHISTORY")
 	OrderMgr = registerNewSubLogger("ORDER")
 	PortfolioMgr = registerNewSubLogger("PORTFOLIO")
 	SyncMgr = registerNewSubLogger("SYNC")
@@ -156,4 +161,5 @@ func init() {
 
 	Ticker = registerNewSubLogger("TICKER")
 	OrderBook = registerNewSubLogger("ORDERBOOK")
+	Trade = registerNewSubLogger("TRADE")
 }

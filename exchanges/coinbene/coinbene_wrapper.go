@@ -3,6 +3,7 @@ package coinbene
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -73,6 +75,7 @@ func (c *Coinbene) SetDefaults() {
 	err = c.StoreAssetPairFormat(asset.PerpetualSwap, currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
 		},
 		ConfigFormat: &currency.PairFormat{
 			Uppercase: true,
@@ -144,10 +147,15 @@ func (c *Coinbene) SetDefaults() {
 	c.Requester = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-
-	c.API.Endpoints.URLDefault = coinbeneAPIURL
-	c.API.Endpoints.URL = c.API.Endpoints.URLDefault
-	c.API.Endpoints.WebsocketURL = wsContractURL
+	c.API.Endpoints = c.NewEndpoints()
+	err = c.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:      coinbeneAPIURL,
+		exchange.RestSwap:      coinbeneSwapAPIURL,
+		exchange.WebsocketSpot: wsContractURL,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	c.Websocket = stream.New()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -166,6 +174,11 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	wsRunningURL, err := c.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
 	err = c.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
@@ -173,14 +186,14 @@ func (c *Coinbene) Setup(exch *config.ExchangeConfig) error {
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
 		DefaultURL:                       wsContractURL,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		RunningURL:                       wsRunningURL,
 		Connector:                        c.WsConnect,
 		Subscriber:                       c.Subscribe,
 		UnSubscriber:                     c.Unsubscribe,
 		GenerateSubscriptions:            c.GenerateDefaultSubscriptions,
 		Features:                         &c.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    true,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 		SortBuffer:                       true,
 	})
 	if err != nil {
@@ -245,23 +258,17 @@ func (c *Coinbene) FetchTradablePairs(a asset.Item) ([]string, error) {
 			currencies = append(currencies, pairs[x].Symbol)
 		}
 	case asset.PerpetualSwap:
-		format, err := c.GetPairFormat(a, false)
+		instruments, err := c.GetSwapInstruments()
 		if err != nil {
 			return nil, err
 		}
-
-		tickers, err := c.GetSwapTickers()
+		pFmt, err := c.GetPairFormat(asset.PerpetualSwap, false)
 		if err != nil {
 			return nil, err
 		}
-		for t := range tickers {
-			idx := strings.Index(t, currency.USDT.String())
-			if idx == 0 {
-				return nil,
-					fmt.Errorf("%s SWAP currency does not contain USDT", c.Name)
-			}
+		for x := range instruments {
 			currencies = append(currencies,
-				t[0:idx]+format.Delimiter+t[idx:])
+				instruments[x].InstrumentID.Format(pFmt.Delimiter, pFmt.Uppercase).String())
 		}
 	}
 	return currencies, nil
@@ -270,7 +277,7 @@ func (c *Coinbene) FetchTradablePairs(a asset.Item) ([]string, error) {
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them
 func (c *Coinbene) UpdateTradablePairs(forceUpdate bool) error {
-	assets := c.GetAssetTypes()
+	assets := c.GetAssetTypes(false)
 	for x := range assets {
 		pairs, err := c.FetchTradablePairs(assets[x])
 		if err != nil {
@@ -403,15 +410,20 @@ func (c *Coinbene) FetchOrderbook(p currency.Pair, assetType asset.Item) (*order
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	resp := new(orderbook.Base)
+	book := &orderbook.Base{
+		Exchange:        c.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: c.CanVerifyOrderbook,
+	}
 	if !c.SupportsAsset(assetType) {
-		return nil,
+		return book,
 			fmt.Errorf("%s does not support asset type %s", c.Name, assetType)
 	}
 
 	fpair, err := c.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	var tempResp Orderbook
@@ -426,11 +438,8 @@ func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		)
 	}
 	if err != nil {
-		return nil, err
+		return book, err
 	}
-	resp.ExchangeName = c.Name
-	resp.Pair = p
-	resp.AssetType = assetType
 	for x := range tempResp.Asks {
 		item := orderbook.Item{
 			Price:  tempResp.Asks[x].Price,
@@ -439,7 +448,7 @@ func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		if assetType == asset.PerpetualSwap {
 			item.OrderCount = tempResp.Asks[x].Count
 		}
-		resp.Asks = append(resp.Asks, item)
+		book.Asks = append(book.Asks, item)
 	}
 	for x := range tempResp.Bids {
 		item := orderbook.Item{
@@ -449,18 +458,18 @@ func (c *Coinbene) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		if assetType == asset.PerpetualSwap {
 			item.OrderCount = tempResp.Bids[x].Count
 		}
-		resp.Bids = append(resp.Bids, item)
+		book.Bids = append(book.Bids, item)
 	}
-	err = resp.Process()
+	err = book.Process()
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 	return orderbook.Get(c.Name, p, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // Coinbene exchange
-func (c *Coinbene) UpdateAccountInfo() (account.Holdings, error) {
+func (c *Coinbene) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	balance, err := c.GetAccountBalances()
 	if err != nil {
@@ -490,10 +499,10 @@ func (c *Coinbene) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (c *Coinbene) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(c.Name)
+func (c *Coinbene) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(c.Name, assetType)
 	if err != nil {
-		return c.UpdateAccountInfo()
+		return c.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -505,8 +514,51 @@ func (c *Coinbene) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (c *Coinbene) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
+// GetWithdrawalsHistory returns previous withdrawals data
+func (c *Coinbene) GetWithdrawalsHistory(cur currency.Code) (resp []exchange.WithdrawalHistory, err error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetRecentTrades returns the most recent trades for a currency and asset
+func (c *Coinbene) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	var err error
+	p, err = c.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var tradeData Trades
+	tradeData, err = c.GetTrades(p.String(), 100)
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	for i := range tradeData {
+		side := order.Buy
+		if tradeData[i].Direction == "sell" {
+			side = order.Sell
+		}
+		resp = append(resp, trade.Data{
+			Exchange:     c.Name,
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         side,
+			Price:        tradeData[i].Price,
+			Amount:       tradeData[i].Volume,
+			Timestamp:    tradeData[i].TradeTime,
+		})
+	}
+
+	err = c.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Sort(trade.ByDate(resp))
+	return resp, nil
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (c *Coinbene) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -550,13 +602,25 @@ func (c *Coinbene) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (c *Coinbene) CancelOrder(order *order.Cancel) error {
-	_, err := c.CancelSpotOrder(order.ID)
+func (c *Coinbene) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
+	_, err := c.CancelSpotOrder(o.ID)
 	return err
+}
+
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (c *Coinbene) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (c *Coinbene) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+	if err := orderCancellation.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
+
 	var resp order.CancelAllResponse
 	fpair, err := c.FormatExchangeCurrency(orderCancellation.Pair,
 		orderCancellation.AssetType)
@@ -582,8 +646,8 @@ func (c *Coinbene) CancelAllOrders(orderCancellation *order.Cancel) (order.Cance
 	return resp, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (c *Coinbene) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (c *Coinbene) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var resp order.Detail
 	tempResp, err := c.FetchSpotOrderInfo(orderID)
 	if err != nil {
@@ -602,30 +666,34 @@ func (c *Coinbene) GetOrderInfo(orderID string) (order.Detail, error) {
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (c *Coinbene) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
+func (c *Coinbene) GetDepositAddress(_ currency.Code, _ string) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (c *Coinbene) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (c *Coinbene) WithdrawCryptocurrencyFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (c *Coinbene) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (c *Coinbene) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (c *Coinbene) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (c *Coinbene) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetActiveOrders retrieves any orders that are active/open
 func (c *Coinbene) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	if len(getOrdersRequest.Pairs) == 0 {
 		allPairs, err := c.GetAllPairs()
 		if err != nil {
@@ -678,6 +746,10 @@ func (c *Coinbene) GetActiveOrders(getOrdersRequest *order.GetOrdersRequest) ([]
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (c *Coinbene) GetOrderHistory(getOrdersRequest *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+
 	if len(getOrdersRequest.Pairs) == 0 {
 		allPairs, err := c.GetAllPairs()
 		if err != nil {
@@ -753,8 +825,8 @@ func (c *Coinbene) AuthenticateWebsocket() error {
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (c *Coinbene) ValidateCredentials() error {
-	_, err := c.UpdateAccountInfo()
+func (c *Coinbene) ValidateCredentials(assetType asset.Item) error {
+	_, err := c.UpdateAccountInfo(assetType)
 	return c.CheckTransientError(err)
 }
 
@@ -776,10 +848,8 @@ func (c *Coinbene) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (c *Coinbene) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !c.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+	if err := c.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
 	}
 
 	formattedPair, err := c.FormatExchangeCurrency(pair, asset.PerpetualSwap)
@@ -805,6 +875,7 @@ func (c *Coinbene) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 		Exchange: c.Name,
 		Pair:     pair,
 		Interval: interval,
+		Asset:    a,
 	}
 
 	for x := range candles.Data {

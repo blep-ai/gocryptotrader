@@ -1,9 +1,9 @@
 # GoCryptoTrader package Orderbook
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
-[![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
+[![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/orderbook)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
@@ -22,9 +22,9 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 + This package facilitates orderbook generation.
 + Attaches methods to an orderbook
-  - To Return total Bids
-  - To Return total Asks
-  - Update orderbooks
+	- To Return total Bids
+	- To Return total Asks
+	- Update orderbooks
 + Gets a loaded orderbook by exchange, asset type and currency pair.
 
 + This package is primarily used in conjunction with but not limited to the
@@ -36,7 +36,7 @@ Examples below:
 ```go
 ob, err := yobitExchange.FetchOrderbook()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Find total asks which also returns total orderbook value
@@ -49,7 +49,7 @@ the package itself.
 ```go
 ob, err := orderbook.Get(...)
 if err != nil {
-  // Handle error
+	// Handle error
 }
 ```
 

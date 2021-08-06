@@ -19,8 +19,6 @@ const (
 	DefaultHandshakeTimeout = 200 * time.Nanosecond
 
 	errNotInitialised   = "dispatcher not initialised"
-	errAlreadyStarted   = "dispatcher already started"
-	errCannotShutdown   = "dispatcher cannot shutdown, already stopped"
 	errShutdownRoutines = "dispatcher did not shutdown properly, routines failed to close"
 )
 
@@ -68,7 +66,7 @@ type job struct {
 	ID   uuid.UUID
 }
 
-// Mux defines a new multiplexor for the dispatch system, these a generated
+// Mux defines a new multiplexer for the dispatch system, these a generated
 // per subsystem
 type Mux struct {
 	// Reference to the main running dispatch service
@@ -82,6 +80,6 @@ type Pipe struct {
 	C chan interface{}
 	// ID to tracked system
 	id uuid.UUID
-	// Reference to multiplexor
+	// Reference to multiplexer
 	m *Mux
 }

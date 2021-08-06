@@ -3,6 +3,7 @@ package btcmarkets
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -56,9 +58,6 @@ func (b *BTCMarkets) SetDefaults() {
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
-	b.API.Endpoints.URLDefault = btcMarketsAPIURL
-	b.API.Endpoints.URL = b.API.Endpoints.URLDefault
-
 	requestFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
 	configFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
 	err := b.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
@@ -121,8 +120,14 @@ func (b *BTCMarkets) SetDefaults() {
 	b.Requester = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-
-	b.API.Endpoints.WebsocketURL = btcMarketsWSURL
+	b.API.Endpoints = b.NewEndpoints()
+	err = b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:      btcMarketsAPIURL,
+		exchange.WebsocketSpot: btcMarketsWSURL,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -141,6 +146,11 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	wsURL, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
@@ -148,13 +158,13 @@ func (b *BTCMarkets) Setup(exch *config.ExchangeConfig) error {
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
 		DefaultURL:                       btcMarketsWSURL,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		RunningURL:                       wsURL,
 		Connector:                        b.WsConnect,
 		Subscriber:                       b.Subscribe,
 		GenerateSubscriptions:            b.generateDefaultSubscriptions,
 		Features:                         &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
-		BufferEnabled:                    true,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 		SortBuffer:                       true,
 	})
 	if err != nil {
@@ -321,7 +331,12 @@ func (b *BTCMarkets) UpdateTicker(p currency.Pair, assetType asset.Item) (*ticke
 
 // FetchTicker returns the ticker for a currency pair
 func (b *BTCMarkets) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	tickerNew, err := ticker.GetTicker(b.Name, p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	tickerNew, err := ticker.GetTicker(b.Name, fPair, assetType)
 	if err != nil {
 		return b.UpdateTicker(p, assetType)
 	}
@@ -330,7 +345,12 @@ func (b *BTCMarkets) FetchTicker(p currency.Pair, assetType asset.Item) (*ticker
 
 // FetchOrderbook returns orderbook base on the currency pair
 func (b *BTCMarkets) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	ob, err := orderbook.Get(b.Name, p, assetType)
+	fPair, err := b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+
+	ob, err := orderbook.Get(b.Name, fPair, assetType)
 	if err != nil {
 		return b.UpdateOrderbook(p, assetType)
 	}
@@ -339,39 +359,43 @@ func (b *BTCMarkets) FetchOrderbook(p currency.Pair, assetType asset.Item) (*ord
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *BTCMarkets) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	book := &orderbook.Base{
+		Exchange:         b.Name,
+		Pair:             p,
+		Asset:            assetType,
+		PriceDuplication: true,
+		VerifyOrderbook:  b.CanVerifyOrderbook,
+	}
+
 	fpair, err := b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	tempResp, err := b.GetOrderbook(fpair.String(), 2)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
-	orderBook := new(orderbook.Base)
 	for x := range tempResp.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+		book.Bids = append(book.Bids, orderbook.Item{
 			Amount: tempResp.Bids[x].Volume,
 			Price:  tempResp.Bids[x].Price})
 	}
 	for y := range tempResp.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+		book.Asks = append(book.Asks, orderbook.Item{
 			Amount: tempResp.Asks[y].Volume,
 			Price:  tempResp.Asks[y].Price})
 	}
-	orderBook.Pair = p
-	orderBook.ExchangeName = b.Name
-	orderBook.AssetType = assetType
-	err = orderBook.Process()
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
 	return orderbook.Get(b.Name, p, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (b *BTCMarkets) UpdateAccountInfo() (account.Holdings, error) {
+func (b *BTCMarkets) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var resp account.Holdings
 	data, err := b.GetAccountBalance()
 	if err != nil {
@@ -399,10 +423,10 @@ func (b *BTCMarkets) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (b *BTCMarkets) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(b.Name)
+func (b *BTCMarkets) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(b.Name, assetType)
 	if err != nil {
-		return b.UpdateAccountInfo()
+		return b.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -414,9 +438,56 @@ func (b *BTCMarkets) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (b *BTCMarkets) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
+// GetWithdrawalsHistory returns previous withdrawals data
+func (b *BTCMarkets) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
+}
+
+// GetRecentTrades returns the most recent trades for a currency and asset
+func (b *BTCMarkets) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	var err error
+	p, err = b.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	var tradeData []Trade
+	tradeData, err = b.GetTrades(p.String(), 0, 0, 200)
+	if err != nil {
+		return nil, err
+	}
+	for i := range tradeData {
+		side := order.Side("")
+		if tradeData[i].Side != "" {
+			side, err = order.StringToOrderSide(tradeData[i].Side)
+			if err != nil {
+				return nil, err
+			}
+		}
+		resp = append(resp, trade.Data{
+			Exchange:     b.Name,
+			TID:          tradeData[i].TradeID,
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         side,
+			Price:        tradeData[i].Price,
+			Amount:       tradeData[i].Amount,
+			Timestamp:    tradeData[i].Timestamp,
+		})
+	}
+
+	err = b.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Sort(trade.ByDate(resp))
+	return resp, nil
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (b *BTCMarkets) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
@@ -465,8 +536,17 @@ func (b *BTCMarkets) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (b *BTCMarkets) CancelOrder(o *order.Cancel) error {
-	_, err := b.RemoveOrder(o.ID)
+	err := o.Validate(o.StandardCancel())
+	if err != nil {
+		return err
+	}
+	_, err = b.RemoveOrder(o.ID)
 	return err
+}
+
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (b *BTCMarkets) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -483,7 +563,7 @@ func (b *BTCMarkets) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, 
 	}
 	splitOrders := common.SplitStringSliceByLimit(orderIDs, 20)
 	for z := range splitOrders {
-		tempResp, err := b.CancelBatchOrders(splitOrders[z])
+		tempResp, err := b.CancelBatch(splitOrders[z])
 		if err != nil {
 			return resp, err
 		}
@@ -498,8 +578,8 @@ func (b *BTCMarkets) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, 
 	return resp, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (b *BTCMarkets) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (b *BTCMarkets) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var resp order.Detail
 	o, err := b.FetchOrder(orderID)
 	if err != nil {
@@ -568,6 +648,9 @@ func (b *BTCMarkets) GetDepositAddress(cryptocurrency currency.Code, accountID s
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is submitted
 func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
 	a, err := b.RequestWithdraw(withdrawRequest.Currency.String(),
 		withdrawRequest.Amount,
 		withdrawRequest.Crypto.Address,
@@ -587,6 +670,9 @@ func (b *BTCMarkets) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Reque
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
 	if withdrawRequest.Currency != currency.AUD {
 		return nil, errors.New("only aud is supported for withdrawals")
 	}
@@ -608,7 +694,7 @@ func (b *BTCMarkets) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*with
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (b *BTCMarkets) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (b *BTCMarkets) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -623,6 +709,9 @@ func (b *BTCMarkets) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, err
 
 // GetActiveOrders retrieves any orders that are active/open
 func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
 	if len(req.Pairs) == 0 {
 		allPairs, err := b.GetEnabledPairs(asset.Spot)
 		if err != nil {
@@ -690,7 +779,7 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 		}
 	}
 	order.FilterOrdersByType(&resp, req.Type)
-	order.FilterOrdersByTickRange(&resp, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&resp, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&resp, req.Side)
 	return resp, nil
 }
@@ -698,6 +787,9 @@ func (b *BTCMarkets) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detai
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
 	var resp []order.Detail
 	var tempResp order.Detail
 	var tempArray []string
@@ -771,8 +863,8 @@ func (b *BTCMarkets) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detai
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (b *BTCMarkets) ValidateCredentials() error {
-	_, err := b.UpdateAccountInfo()
+func (b *BTCMarkets) ValidateCredentials(assetType asset.Item) error {
+	_, err := b.UpdateAccountInfo(assetType)
 	if err != nil {
 		if b.CheckTransientError(err) == nil {
 			return nil
@@ -800,13 +892,11 @@ func (b *BTCMarkets) FormatExchangeKlineInterval(in kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (b *BTCMarkets) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !b.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+	if err := b.ValidateKline(pair, a, interval); err != nil {
+		return kline.Item{}, err
 	}
 
-	if kline.TotalCandlesPerInterval(start, end, interval) > b.Features.Enabled.Kline.ResultLimit {
+	if kline.TotalCandlesPerInterval(start, end, interval) > float64(b.Features.Enabled.Kline.ResultLimit) {
 		return kline.Item{}, errors.New(kline.ErrRequestExceedsExchangeLimits)
 	}
 
@@ -870,24 +960,31 @@ func (b *BTCMarkets) GetHistoricCandles(pair currency.Pair, a asset.Item, start,
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (b *BTCMarkets) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !b.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+	if err := b.ValidateKline(p, a, interval); err != nil {
+		return kline.Item{}, err
+	}
+
+	fPair, err := b.FormatExchangeCurrency(p, a)
+	if err != nil {
+		return kline.Item{}, err
 	}
 
 	ret := kline.Item{
 		Exchange: b.Name,
-		Pair:     p,
+		Pair:     fPair,
 		Asset:    a,
 		Interval: interval,
 	}
 
-	dates := kline.CalcDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
-	for x := range dates {
-		candles, err := b.GetMarketCandles(p.String(),
+	dates, err := kline.CalculateCandleDateRanges(start, end, interval, b.Features.Enabled.Kline.ResultLimit)
+	if err != nil {
+		return kline.Item{}, err
+	}
+	for x := range dates.Ranges {
+		var candles CandleResponse
+		candles, err = b.GetMarketCandles(fPair.String(),
 			b.FormatExchangeKlineInterval(interval),
-			dates[x].Start, dates[x].End, -1, -1, -1)
+			dates.Ranges[x].Start.Time, dates.Ranges[x].End.Time, -1, -1, -1)
 		if err != nil {
 			return kline.Item{}, err
 		}
@@ -924,6 +1021,13 @@ func (b *BTCMarkets) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, s
 		}
 	}
 
+	dates.SetHasDataFromCandles(ret.Candles)
+	summary := dates.DataSummary(false)
+	if len(summary) > 0 {
+		log.Warnf(log.ExchangeSys, "%v - %v", b.Name, summary)
+	}
+	ret.RemoveDuplicates()
+	ret.RemoveOutsideRange(start, end)
 	ret.SortCandlesByTimestamp(false)
 	return ret, nil
 }

@@ -33,3 +33,12 @@ sqlboiler.json
 # GCT API Check
 backup.json
 .DS_STORE
+
+# Designated generated files dir
+target/
+
+# Delve compiled executable
+__debug_bin
+
+# Coverage reports
+coverage.txt

@@ -5,44 +5,53 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/portfolio"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
 
 // Validate takes interface and passes to asset type to check the request meets requirements to submit
-func Validate(request *Request) (err error) {
-	if request == nil {
+func (r *Request) Validate(opt ...validate.Checker) (err error) {
+	if r == nil {
 		return ErrRequestCannotBeNil
 	}
 
+	if r.Exchange == "" {
+		return ErrExchangeNameUnset
+	}
+
 	var allErrors []string
-	if request.Amount <= 0 {
+	if r.Amount <= 0 {
 		allErrors = append(allErrors, ErrStrAmountMustBeGreaterThanZero)
 	}
 
-	if (request.Currency == currency.Code{}) {
+	if (r.Currency == currency.Code{}) {
 		allErrors = append(allErrors, ErrStrNoCurrencySet)
 	}
 
-	switch request.Type {
+	switch r.Type {
 	case Fiat:
-		if request.Fiat == nil {
-			return ErrInvalidRequest
-		}
-		if (request.Currency != currency.Code{}) && !request.Currency.IsFiatCurrency() {
+		if (r.Currency != currency.Code{}) && !r.Currency.IsFiatCurrency() {
 			allErrors = append(allErrors, ErrStrCurrencyNotFiat)
 		}
-		allErrors = append(allErrors, validateFiat(request)...)
+		allErrors = append(allErrors, r.validateFiat()...)
 	case Crypto:
-		if request.Crypto == nil {
-			return ErrInvalidRequest
-		}
-		if (request.Currency != currency.Code{}) && !request.Currency.IsCryptocurrency() {
+		if (r.Currency != currency.Code{}) && !r.Currency.IsCryptocurrency() {
 			allErrors = append(allErrors, ErrStrCurrencyNotCrypto)
 		}
-		allErrors = append(allErrors, validateCrypto(request)...)
+		allErrors = append(allErrors, r.validateCrypto()...)
 	default:
 		allErrors = append(allErrors, "invalid request type")
 	}
+
+	for _, o := range opt {
+		if o == nil {
+			continue
+		}
+		err := o.Check()
+		if err != nil {
+			allErrors = append(allErrors, err.Error())
+		}
+	}
+
 	if len(allErrors) > 0 {
 		return errors.New(strings.Join(allErrors, ", "))
 	}
@@ -50,30 +59,25 @@ func Validate(request *Request) (err error) {
 }
 
 // validateFiat takes interface and passes to asset type to check the request meets requirements to submit
-func validateFiat(request *Request) (err []string) {
-	errBank := request.Fiat.Bank.ValidateForWithdrawal(request.Exchange, request.Currency)
+func (r *Request) validateFiat() []string {
+	var resp []string
+	errBank := r.Fiat.Bank.ValidateForWithdrawal(r.Exchange, r.Currency)
 	if errBank != nil {
-		err = append(err, errBank...)
+		resp = append(resp, errBank...)
 	}
-	return err
+	return resp
 }
 
 // validateCrypto checks if Crypto request is valid and meets the minimum requirements to submit a crypto withdrawal request
-func validateCrypto(request *Request) (err []string) {
-	if !portfolio.IsWhiteListed(request.Crypto.Address) {
-		err = append(err, ErrStrAddressNotWhiteListed)
+func (r *Request) validateCrypto() []string {
+	var resp []string
+
+	if r.Crypto.Address == "" {
+		resp = append(resp, ErrStrAddressNotSet)
 	}
 
-	if !portfolio.IsExchangeSupported(request.Exchange, request.Crypto.Address) {
-		err = append(err, ErrStrExchangeNotSupportedByAddress)
+	if r.Crypto.FeeAmount < 0 {
+		resp = append(resp, ErrStrFeeCannotBeNegative)
 	}
-
-	if request.Crypto.Address == "" {
-		err = append(err, ErrStrAddressNotSet)
-	}
-
-	if request.Crypto.FeeAmount < 0 {
-		err = append(err, ErrStrFeeCannotBeNegative)
-	}
-	return
+	return resp
 }

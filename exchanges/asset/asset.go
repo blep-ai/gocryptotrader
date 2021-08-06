@@ -1,7 +1,14 @@
 package asset
 
 import (
+	"errors"
+	"fmt"
 	"strings"
+)
+
+var (
+	// ErrNotSupported is an error for an unsupported asset type
+	ErrNotSupported = errors.New("received unsupported asset type")
 )
 
 // Item stores the asset type
@@ -22,6 +29,8 @@ const (
 	Futures                = Item("futures")
 	UpsideProfitContract   = Item("upsideprofitcontract")
 	DownsideProfitContract = Item("downsideprofitcontract")
+	CoinMarginedFutures    = Item("coinmarginedfutures")
+	USDTMarginedFutures    = Item("usdtmarginedfutures")
 )
 
 var supported = Items{
@@ -35,6 +44,8 @@ var supported = Items{
 	Futures,
 	UpsideProfitContract,
 	DownsideProfitContract,
+	CoinMarginedFutures,
+	USDTMarginedFutures,
 }
 
 // Supported returns a list of supported asset types
@@ -59,12 +70,12 @@ func (a Items) Strings() []string {
 // Contains returns whether or not the supplied asset exists
 // in the list of Items
 func (a Items) Contains(i Item) bool {
-	if !IsValid(i) {
+	if !i.IsValid() {
 		return false
 	}
 
 	for x := range a {
-		if strings.EqualFold(a[x].String(), i.String()) {
+		if a[x].String() == i.String() {
 			return true
 		}
 	}
@@ -79,35 +90,30 @@ func (a Items) JoinToString(separator string) string {
 
 // IsValid returns whether or not the supplied asset type is valid or
 // not
-func IsValid(input Item) bool {
-	a := Supported()
-	for x := range a {
-		if strings.EqualFold(a[x].String(), input.String()) {
+func (a Item) IsValid() bool {
+	for x := range supported {
+		if supported[x].String() == a.String() {
 			return true
 		}
 	}
 	return false
 }
 
-// New takes an input of asset types as string and returns an Items
-// array
-func New(input string) Items {
-	if !strings.Contains(input, ",") {
-		if IsValid(Item(input)) {
-			return Items{
-				Item(input),
-			}
+// New takes an input matches to relevant package assets
+func New(input string) (Item, error) {
+	input = strings.ToLower(input)
+	for i := range supported {
+		if string(supported[i]) == input {
+			return supported[i], nil
 		}
-		return nil
 	}
+	return "", fmt.Errorf("%w %v, only supports %v",
+		ErrNotSupported,
+		input,
+		supported)
+}
 
-	assets := strings.Split(input, ",")
-	var result Items
-	for x := range assets {
-		if !IsValid(Item(assets[x])) {
-			return nil
-		}
-		result = append(result, Item(assets[x]))
-	}
-	return result
+// UseDefault returns default asset type
+func UseDefault() Item {
+	return Spot
 }

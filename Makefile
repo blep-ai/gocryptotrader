@@ -1,12 +1,17 @@
 LDFLAGS = -ldflags "-w -s"
 GCTPKG = github.com/thrasher-corp/gocryptotrader
-LINTPKG = github.com/golangci/golangci-lint/cmd/golangci-lint@v1.24.0
+LINTPKG = github.com/golangci/golangci-lint/cmd/golangci-lint@v1.31.0
 LINTBIN = $(GOPATH)/bin/golangci-lint
 GCTLISTENPORT=9050
 GCTPROFILERLISTENPORT=8085
 CRON = $(TRAVIS_EVENT_TYPE)
 DRIVER ?= psql
 RACE_FLAG := $(if $(NO_RACE_TEST),,-race)
+CONFIG_FLAG = $(if $(CONFIG),-config $(CONFIG),)
+
+.PHONY: get linter check test build install update_deps
+
+all: check build
 
 get:
 	GO111MODULE=on go get $(GCTPKG)
@@ -48,9 +53,16 @@ profile_heap:
 profile_cpu:
 	go tool pprof -http "localhost:$(GCTPROFILERLISTENPORT)" 'http://localhost:$(GCTLISTENPORT)/debug/pprof/profile'
 
-gen_db_models:
+.PHONY: gen_db_models
+gen_db_models: target/sqlboiler.json
 ifeq ($(DRIVER), psql)
-	sqlboiler -o database/models/postgres -p postgres --no-auto-timestamps --wipe $(DRIVER)
+	sqlboiler -c $< -o database/models/postgres -p postgres --no-auto-timestamps --wipe $(DRIVER)
+else ifeq ($(DRIVER), sqlite3)
+	sqlboiler -c $< -o database/models/sqlite3 -p sqlite3 --no-auto-timestamps --wipe $(DRIVER)
 else
-	sqlboiler -o database/models/sqlite3 -p sqlite3 --no-auto-timestamps --wipe $(DRIVER)
+	$(error Driver '$(DRIVER)' not supported)
 endif
+
+target/sqlboiler.json:
+	mkdir -p $(@D)
+	go run ./cmd/gen_sqlboiler_config/main.go $(CONFIG_FLAG) -outdir $(@D)
