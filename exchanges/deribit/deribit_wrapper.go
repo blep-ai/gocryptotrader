@@ -119,9 +119,13 @@ func (de *Deribit) SetDefaults() {
 	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
 	de.Requester = request.New(de.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-
-	de.API.Endpoints.URLDefault = deribitAPIURL
-	de.API.Endpoints.URL = de.API.Endpoints.URLDefault
+	de.API.Endpoints = de.NewEndpoints()
+	err = de.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:         deribitAPIURL,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	de.Websocket = stream.New()
 	de.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	de.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -140,6 +144,11 @@ func (de *Deribit) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	wsRunningURL, err := de.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
 	// If websocket is supported, please fill out the following
 	err = de.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
@@ -148,7 +157,7 @@ func (de *Deribit) Setup(exch *config.ExchangeConfig) error {
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
 		DefaultURL:                       deribitWSURL,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		RunningURL:                       wsRunningURL,
 		Connector:                        de.WsConnect,
 		Subscriber:                       de.Subscribe,
 		UnSubscriber:                     de.Unsubscribe,
@@ -263,7 +272,12 @@ func (de *Deribit) FetchOrderbook(currency currency.Pair, assetType asset.Item) 
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (de *Deribit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
+	orderBook := &orderbook.Base{
+		Exchange:        de.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: de.CanVerifyOrderbook,
+	}
 	// NOTE: UPDATE ORDERBOOK EXAMPLE
 	/*
 		orderbookNew, err := de.GetOrderBook(exchange.FormatExchangeCurrency(de.Name, p).String(), 1000)
@@ -286,9 +300,6 @@ func (de *Deribit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		}
 	*/
 
-	orderBook.Pair = p
-	orderBook.ExchangeName = de.Name
-	orderBook.AssetType = assetType
 
 	err := orderBook.Process()
 	if err != nil {
@@ -314,10 +325,10 @@ func (de *Deribit) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (de *Deribit) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
-}
+//// GetExchangeHistory returns historic trade data within the timeframe provided.
+//func (de *Deribit) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
+//	return nil, common.ErrNotYetImplemented
+//}
 
 // SubmitOrder submits a new order
 func (de *Deribit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {

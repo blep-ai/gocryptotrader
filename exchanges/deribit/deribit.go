@@ -193,24 +193,40 @@ func (d *Deribit) GetInstruments(currency string, kind Kind, expired bool) ([]In
 	}
 
 	var instruments Instruments
-	return instruments.Result, d.SendHTTPRequest(d.API.Endpoints.URL + PublicGetInstruments + "?" + params.Encode(), &instruments)
+	return instruments.Result, d.SendHTTPRequest(exchange.RestSpot, PublicGetInstruments + "?" + params.Encode(), &instruments)
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (b *Deribit) SendHTTPRequest(path string, result interface{}) error {
-	return b.SendPayload(context.Background(), &request.Item{
+func (b *Deribit) SendHTTPRequest(ep exchange.URL, path string, result interface{}) error {
+	endpoint, err := b.API.Endpoints.GetURL(ep)
+	if err != nil {
+		return err
+	}
+	var tempResp json.RawMessage
+	var errCap errorCapture
+	err = b.SendPayload(context.Background(), &request.Item{
 		Method:        http.MethodGet,
-		Path:          path,
-		Result:        result,
+		Path:          endpoint + path,
+		Result:        &tempResp,
 		Verbose:       b.Verbose,
 		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording })
+		HTTPRecording: b.HTTPRecording,
+	})
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(tempResp, &errCap); err == nil {
+		if errCap.Code != 200 && errCap.ErrMsg != "" {
+			return errors.New(errCap.ErrMsg)
+		}
+	}
+	return json.Unmarshal(tempResp, result)
 }
 
 // TODO: SendAuthHTTPRequest sends an authenticated HTTP request
 func (b *Deribit) SendAuthHTTPRequest(method, path string, params url.Values, f request.EndpointLimit, result interface{}) error {
 	if !b.AllowAuthenticatedRequest() {
-		return fmt.Errorf(exchange.WarningAuthenticatedRequestWithoutCredentialsSet, b.Name)
+		return fmt.Errorf("%s %w", b.Name, exchange.ErrAuthenticatedRequestWithoutCredentialsSet)
 	}
 
 	if params == nil {

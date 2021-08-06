@@ -237,7 +237,7 @@ func (de *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 		//Channel: wsMarkets,
 	//})
 	var channels = []string{"ticker"}//, wsTrades, wsOrderbook}
-	assets := de.GetAssetTypes()
+	assets := de.GetAssetTypes(true)
 	for a := range assets {
 		pairs, err := de.GetEnabledPairs(assets[a])
 		if err != nil {

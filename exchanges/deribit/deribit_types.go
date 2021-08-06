@@ -9,6 +9,12 @@ const (
 	NA          = ""
 )
 
+type errorCapture struct {
+	Status    string `json:"status"`
+	Code      int64  `json:"err_code"`
+	ErrMsg    string `json:"err_msg"`
+	Timestamp int64  `json:"ts"`
+}
 
 // remove 'kind' for options and futures and perp etc
 // /public/get_instruments
