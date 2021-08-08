@@ -459,8 +459,11 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 					}
 				}
 			case 3:
-				if d[1].(string) != wsFundingTradeUpdate &&
-					d[1].(string) != wsTradeExecutionUpdate {
+				if d[1].(string) == wsTradeExecutionUpdate ||
+					d[1].(string) == wsFundingTradeUpdate {
+					// "(f)te - trade executed" && "(f)tu - trade updated"
+					// contain the same amount of data
+					// "(f)te" gets sent first so we can drop "(f)tu"
 					return nil
 				}
 				data := d[2].([]interface{})
