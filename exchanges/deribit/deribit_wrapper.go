@@ -123,6 +123,7 @@ func (de *Deribit) SetDefaults() {
 	de.API.Endpoints = de.NewEndpoints()
 	err = de.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot: deribitAPIURL,
+		exchange.WebsocketSpot: deribitWSURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
