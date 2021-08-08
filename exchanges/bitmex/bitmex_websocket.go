@@ -96,7 +96,15 @@ func (b *Bitmex) WsConnect() error {
 	}
 
 	go b.wsReadData()
+	subs, err := b.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
 
+	err = b.Websocket.SubscribeToChannels(subs)
+	if err != nil {
+		return err
+	}
 	err = b.websocketSendAuth()
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
@@ -582,14 +590,32 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
+	assets := b.GetAssetTypes(true)
+	var allPairs currency.Pairs
+	var associatedAssets []asset.Item
+	for x := range assets {
+		contracts, err := b.GetEnabledPairs(assets[x])
+		if err != nil {
+			return nil, err
+		}
+		for y := range contracts {
+			allPairs = allPairs.Add(contracts[y])
+			associatedAssets = append(associatedAssets, assets[x])
+		}
+	}
+
+	if len(allPairs) != len(associatedAssets) {
+		return nil, fmt.Errorf("%s generate default subscriptions: pair and asset type len mismatch", b.Name)
+	}
+
+	channels := []string{bitmexWSInstrument} //bitmexWSOrderbookL2, bitmexWSTrade}
 	subscriptions := []stream.ChannelSubscription{
 		{
 			Channel: bitmexWSAnnouncement,
 		},
 	}
 
-	assets := b.GetAssetTypes(true)
+	assets = b.GetAssetTypes(true)
 	for x := range assets {
 		contracts, err := b.GetEnabledPairs(assets[x])
 		if err != nil {
