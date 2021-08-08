@@ -203,7 +203,11 @@ func (o *OKGroup) WsConnect() error {
 		}
 	}
 
-	return nil
+	subs, err := o.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
+	return o.Websocket.SubscribeToChannels(subs)
 }
 
 // WsLogin sends a login request to websocket to enable access to authenticated endpoints
