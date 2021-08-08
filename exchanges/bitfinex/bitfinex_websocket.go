@@ -74,8 +74,12 @@ func (b *Bitfinex) WsConnect() error {
 		}
 	}
 
+	subs, err := b.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
 	go b.WsDataHandler()
-	return nil
+	return b.Websocket.SubscribeToChannels(subs)
 }
 
 // wsReadData receives and passes on websocket messages for processing
