@@ -1,6 +1,9 @@
 package engine
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 // Settings stores engine params
 type Settings struct {
@@ -17,6 +20,7 @@ type Settings struct {
 	EnableAllPairs              bool
 	EnableCoinmarketcapAnalysis bool
 	EnablePortfolioManager      bool
+	EnableDataHistoryManager    bool
 	PortfolioManagerDelay       time.Duration
 	EnableGRPC                  bool
 	EnableGRPCProxy             bool
@@ -41,13 +45,15 @@ type Settings struct {
 	EnableTradeSyncing     bool
 	SyncWorkers            int
 	SyncContinuously       bool
-	SyncTimeout            time.Duration
+	SyncTimeoutREST        time.Duration
+	SyncTimeoutWebsocket   time.Duration
 
 	// Forex settings
 	EnableCurrencyConverter bool
 	EnableCurrencyLayer     bool
 	EnableFixer             bool
 	EnableOpenExchangeRates bool
+	EnableExchangeRateHost  bool
 
 	// Exchange tuning settings
 	EnableExchangeHTTPRateLimiter  bool
@@ -59,6 +65,7 @@ type Settings struct {
 	EnableExchangeRESTSupport      bool
 	EnableExchangeWebsocketSupport bool
 	MaxHTTPRequestJobsLimit        int
+	TradeBufferProcessingInterval  time.Duration
 	RequestMaxRetryAttempts        int
 
 	// Global HTTP related settings
@@ -84,29 +91,17 @@ type Settings struct {
 }
 
 const (
-	// ErrSubSystemAlreadyStarted message to return when a subsystem is already started
-	ErrSubSystemAlreadyStarted = "manager already started"
-	// ErrSubSystemAlreadyStopped message to return when a subsystem is already stopped
-	ErrSubSystemAlreadyStopped = "already stopped"
-	// ErrSubSystemNotStarted message to return when subsystem not started
-	ErrSubSystemNotStarted = "not started"
-
-	// ErrScriptFailedValidation message to display when a script fails its validation
-	ErrScriptFailedValidation string = "validation failed"
-	// MsgSubSystemStarting message to return when subsystem is starting up
-	MsgSubSystemStarting = "manager starting..."
-	// MsgSubSystemStarted message to return when subsystem has started
-	MsgSubSystemStarted = "started."
-
-	// MsgSubSystemShuttingDown message to return when a subsystem is shutting down
-	MsgSubSystemShuttingDown = "shutting down..."
-	// MsgSubSystemShutdown message to return when a subsystem has shutdown
-	MsgSubSystemShutdown = "manager shutdown."
-
 	// MsgStatusOK message to display when status is "OK"
 	MsgStatusOK string = "ok"
 	// MsgStatusSuccess message to display when status is successful
 	MsgStatusSuccess string = "success"
 	// MsgStatusError message to display when failure occurs
 	MsgStatusError string = "error"
+	grpcName       string = "grpc"
+	grpcProxyName  string = "grpc_proxy"
 )
+
+// newConfigMutex only locks and unlocks on engine creation functions
+// as engine modifies global files, this protects the main bot creation
+// functions from interfering with eachother
+var newEngineMutex sync.Mutex

@@ -25,8 +25,6 @@ const (
 const (
 	// ErrStrAmountMustBeGreaterThanZero message to return when requested amount is less than 0
 	ErrStrAmountMustBeGreaterThanZero = "amount must be greater than 0"
-	// ErrStrAddressisInvalid message to return when address is invalid for crypto request
-	ErrStrAddressisInvalid = "address is not valid"
 	// ErrStrAddressNotSet message to return when address is empty
 	ErrStrAddressNotSet = "address cannot be empty"
 	// ErrStrNoCurrencySet message to return when no currency is set
@@ -37,17 +35,19 @@ const (
 	ErrStrCurrencyNotFiat = "requested currency is not fiat"
 	// ErrStrFeeCannotBeNegative message to return when fee amount is negative
 	ErrStrFeeCannotBeNegative = "fee amount cannot be negative"
-	// ErrStrAddressNotWhiteListed message to return when attempting to withdraw to non-whitelisted address
-	ErrStrAddressNotWhiteListed = "address is not whitelisted for withdrawals"
-	// ErrStrExchangeNotSupportedByAddress message to return when attemptign to withdraw to an unsupported exchange
-	ErrStrExchangeNotSupportedByAddress = "address is not supported by exchange"
 )
 
 var (
 	// ErrRequestCannotBeNil message to return when a request is nil
 	ErrRequestCannotBeNil = errors.New("request cannot be nil")
+	// ErrExchangeNameUnset message to return when an exchange name is unset
+	ErrExchangeNameUnset = errors.New("exchange name unset")
 	// ErrInvalidRequest message to return when a request type is invalid
 	ErrInvalidRequest = errors.New("invalid request type")
+	// ErrStrAddressNotWhiteListed occurs when a withdrawal attempts to withdraw from a non-whitelisted address
+	ErrStrAddressNotWhiteListed = errors.New("address is not whitelisted for withdrawals")
+	// ErrStrExchangeNotSupportedByAddress message to return when attemptign to withdraw to an unsupported exchange
+	ErrStrExchangeNotSupportedByAddress = errors.New("address is not supported by exchange")
 	// CacheSize cache size to use for withdrawal request history
 	CacheSize uint64 = 25
 	// Cache LRU cache for recent requests
@@ -65,7 +65,7 @@ type CryptoRequest struct {
 
 // FiatRequest used for fiat withdrawal requests
 type FiatRequest struct {
-	Bank *banking.Account
+	Bank banking.Account
 
 	IsExpressWire bool
 	// Intermediary bank information
@@ -94,16 +94,16 @@ type Request struct {
 	OneTimePassword int64
 	PIN             int64
 
-	Crypto *CryptoRequest `json:",omitempty"`
-	Fiat   *FiatRequest   `json:",omitempty"`
+	Crypto CryptoRequest `json:",omitempty"`
+	Fiat   FiatRequest   `json:",omitempty"`
 }
 
 // Response holds complete details for Response
 type Response struct {
 	ID uuid.UUID `json:"id"`
 
-	Exchange       *ExchangeResponse `json:"exchange"`
-	RequestDetails *Request          `json:"request_details"`
+	Exchange       ExchangeResponse `json:"exchange"`
+	RequestDetails Request          `json:"request_details"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -112,6 +112,7 @@ type Response struct {
 // ExchangeResponse holds information returned from an exchange
 type ExchangeResponse struct {
 	Name   string `json:"name"`
+	UUID   uuid.UUID
 	ID     string `json:"id"`
 	Status string `json:"status"`
 }

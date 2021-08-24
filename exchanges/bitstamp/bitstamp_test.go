@@ -1,10 +1,10 @@
 package bitstamp
 
 import (
-	"net/url"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -65,61 +65,43 @@ func TestGetFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
 
 	// CryptocurrencyTradeFee Basic
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || (areTestAPIKeysSet() && err != nil) {
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
-		t.Errorf("GetFee() error. Expected: %f, Received: %f",
-			float64(0),
-			resp)
 	}
 
 	// CryptocurrencyTradeFee High quantity
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Amount = 1000
 	feeBuilder.PurchasePrice = 1000
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || (areTestAPIKeysSet() && err != nil) {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f",
-			float64(0),
-			resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// CryptocurrencyTradeFee IsMaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || (areTestAPIKeysSet() && err != nil) {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f",
-			float64(0),
-			resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// CryptocurrencyTradeFee Negative purchase price
 	feeBuilder = setFeeBuilder()
 	feeBuilder.PurchasePrice = -1000
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || (areTestAPIKeysSet() && err != nil) {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f",
-			float64(0),
-			resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f",
-			float64(0),
-			resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
-	// CyptocurrencyDepositFee Basic
+	// CryptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
-	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f",
-			float64(0),
-			resp)
+	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -127,10 +109,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	feeBuilder.FiatCurrency = currency.HKD
-	if resp, err := b.GetFee(feeBuilder); resp != float64(7.5) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f",
-			float64(7.5),
-			resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -138,10 +117,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.HKD
-	if resp, err := b.GetFee(feeBuilder); resp != float64(15) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f",
-			float64(15),
-			resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 }
@@ -182,7 +158,6 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
-
 	_, err := b.GetOrderbook(currency.BTC.String() + currency.USD.String())
 	if err != nil {
 		t.Error("GetOrderbook() error", err)
@@ -200,11 +175,7 @@ func TestGetTradingPairs(t *testing.T) {
 
 func TestGetTransactions(t *testing.T) {
 	t.Parallel()
-
-	value := url.Values{}
-	value.Set("time", "hour")
-
-	_, err := b.GetTransactions(currency.BTC.String()+currency.USD.String(), value)
+	_, err := b.GetTransactions(currency.BTC.String()+currency.USD.String(), "hour")
 	if err != nil {
 		t.Error("GetTransactions() error", err)
 	}
@@ -221,7 +192,6 @@ func TestGetEURUSDConversionRate(t *testing.T) {
 
 func TestGetBalance(t *testing.T) {
 	t.Parallel()
-
 	_, err := b.GetBalance()
 	switch {
 	case areTestAPIKeysSet() && err != nil && !mockTests:
@@ -337,7 +307,8 @@ func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := b.GetActiveOrders(&getOrdersRequest)
@@ -355,7 +326,8 @@ func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := b.GetOrderHistory(&getOrdersRequest)
@@ -384,11 +356,12 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.BTC,
 			Quote: currency.USD,
 		},
-		Side:     order.Buy,
-		Type:     order.Limit,
-		Price:    1,
-		Amount:   1,
-		ClientID: "meowOrder",
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     1,
+		Amount:    1,
+		ClientID:  "meowOrder",
+		AssetType: asset.Spot,
 	}
 	response, err := b.SubmitOrder(orderSubmission)
 	switch {
@@ -409,7 +382,8 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	orderCancellation := &order.Cancel{
-		ID: "1234",
+		ID:        "1234",
+		AssetType: asset.Spot,
 	}
 	err := b.CancelOrder(orderCancellation)
 	switch {
@@ -429,7 +403,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
 
-	resp, err := b.CancelAllOrders(&order.Cancel{})
+	resp, err := b.CancelAllOrders(&order.Cancel{AssetType: asset.Spot})
 	switch {
 	case !areTestAPIKeysSet() && err == nil && !mockTests:
 		t.Error("Expecting an error when no keys are set")
@@ -447,7 +421,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.ModifyOrder(&order.Modify{})
+	_, err := b.ModifyOrder(&order.Modify{AssetType: asset.Spot})
 	if err == nil {
 		t.Error("ModifyOrder() Expected error")
 	}
@@ -464,7 +438,7 @@ func TestWithdraw(t *testing.T) {
 		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
-		Crypto: &withdraw.CryptoRequest{
+		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
 	}
@@ -488,8 +462,8 @@ func TestWithdrawFiat(t *testing.T) {
 	}
 
 	var withdrawFiatRequest = withdraw.Request{
-		Fiat: &withdraw.FiatRequest{
-			Bank: &banking.Account{
+		Fiat: withdraw.FiatRequest{
+			Bank: banking.Account{
 				AccountName:    "Satoshi Nakamoto",
 				AccountNumber:  "12345",
 				BankAddress:    "123 Fake St",
@@ -528,8 +502,8 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 
 	var withdrawFiatRequest = withdraw.Request{
-		Fiat: &withdraw.FiatRequest{
-			Bank: &banking.Account{
+		Fiat: withdraw.FiatRequest{
+			Bank: banking.Account{
 				AccountName:    "Satoshi Nakamoto",
 				AccountNumber:  "12345",
 				BankAddress:    "123 Fake St",
@@ -641,7 +615,7 @@ func TestWsOrderbook(t *testing.T) {
 }
 
 func TestWsOrderbook2(t *testing.T) {
-	pressXToJSON := []byte(`{"data": {"timestamp": "1580336904", "microtimestamp": "1580336904228758", "bids": [["9317.09", "2.67910000"], ["9296.14", "0.00000000"], ["9294.36", "0.04967421"]], "asks": [["9333.85", "0.00000000"], ["9339.20", "0.20000000"], ["9339.66", "0.00000000"], ["9342.63", "4.90000000"], ["9343.66", "0.00000000"], ["9343.76", "2.87275947"]]}, "event": "data", "channel": "diff_order_book_btcusd"}`)
+	pressXToJSON := []byte(`{"data":{"timestamp":"1606965727","microtimestamp":"1606965727403931","bids":[["19133.97","0.01000000"],["19131.58","0.39200000"],["19131.18","0.69581810"],["19131.17","0.48139054"],["19129.72","0.48164130"],["19129.71","0.65400000"],["19128.80","1.04500000"],["19128.59","0.65400000"],["19128.12","0.00259236"],["19127.81","0.19784245"],["19126.66","1.04500000"],["19125.74","0.26020000"],["19124.68","0.22000000"],["19122.01","0.39777840"],["19122.00","1.04600000"],["19121.27","0.16741000"],["19121.10","1.56390000"],["19119.90","1.60000000"],["19119.58","0.15593238"],["19117.70","1.14600000"],["19115.36","2.61300000"],["19114.60","1.19570000"],["19113.88","0.07500000"],["19113.86","0.15668522"],["19113.70","1.00000000"],["19113.69","1.60000000"],["19112.27","0.00166667"],["19111.00","0.15464628"],["19108.80","0.70000000"],["19108.77","0.16300000"],["19108.38","1.10000000"],["19107.53","0.10000000"],["19106.83","0.21377991"],["19106.78","3.45938881"],["19104.24","1.30000000"],["19100.81","0.00166667"],["19100.21","0.49770000"],["19099.54","2.40971961"],["19099.53","0.51223189"],["19097.40","1.55000000"],["19095.55","2.61300000"],["19092.94","0.27402906"],["19092.20","1.60000000"],["19089.36","0.00166667"],["19086.32","1.62000000"],["19085.23","1.65670000"],["19080.88","1.40000000"],["19075.45","1.16000000"],["19071.24","1.20000000"],["19065.09","1.51000000"],["19059.38","1.57000000"],["19058.11","0.37393556"],["19052.98","0.01000000"],["19052.90","0.33000000"],["19049.55","6.89000000"],["19047.61","6.03623432"],["19030.16","16.60260000"],["19026.76","23.90800000"],["19024.78","2.16656212"],["19022.11","0.02628500"],["19020.37","6.03000000"],["19000.00","0.00132020"],["18993.52","2.22000000"],["18979.21","6.03240000"],["18970.20","0.01500000"],["18969.14","7.42000000"],["18956.46","6.03240000"],["18950.22","42.37500000"],["18950.00","0.00132019"],["18949.94","0.52650000"],["18946.00","0.00791700"],["18933.74","6.03240000"],["18932.21","8.21000000"],["18926.99","0.00150000"],["18926.98","0.02641500"],["18925.00","0.02000000"],["18909.99","0.00133000"],["18908.47","7.15000000"],["18905.99","0.00133000"],["18905.20","0.00190000"],["18901.00","0.10000000"],["18900.67","0.24430000"],["18900.00","7.56529933"],["18895.99","0.00178450"],["18890.00","0.10000000"],["18889.90","0.10580000"],["18888.00","0.00362564"],["18887.00","4.00000000"],["18881.62","0.20583403"],["18880.08","5.72198740"],["18880.05","8.33480000"],["18879.09","7.33000000"],["18875.99","0.00132450"],["18875.00","0.02000000"],["18873.47","0.25934200"],["18871.99","0.00132600"],["18870.93","0.36463225"],["18864.10","43.56800000"],["18853.11","0.00540000"],["18850.01","0.38925549"]],"asks":[["19141.75","0.39300000"],["19141.78","0.10204700"],["19143.05","1.99685100"],["19143.08","0.05777900"],["19143.09","1.60700800"],["19143.10","0.48282909"],["19143.36","0.11250000"],["19144.06","0.26040000"],["19145.97","0.65400000"],["19146.02","0.22000000"],["19146.56","0.45061841"],["19147.45","0.15877831"],["19148.92","0.70431840"],["19148.93","0.78400000"],["19150.32","0.78400000"],["19151.55","0.07500000"],["19152.64","3.11400000"],["19153.32","1.04600000"],["19153.84","0.15626630"],["19155.57","3.10000000"],["19156.40","0.13438213"],["19156.92","0.16300000"],["19157.54","1.38970000"],["19158.18","0.00166667"],["19158.41","0.15317000"],["19158.78","0.15888798"],["19160.14","0.10000000"],["19160.34","1.60000000"],["19160.70","1.21590000"],["19162.17","0.00352761"],["19162.67","1.04500000"],["19163.61","0.15000000"],["19163.80","1.18050000"],["19164.62","0.86919692"],["19165.36","0.15674424"],["19166.75","1.40000000"],["19167.47","2.61300000"],["19169.68","0.00166667"],["19171.08","0.15452025"],["19171.69","0.54308236"],["19172.12","0.49000000"],["19173.47","1.34000000"],["19174.49","1.07436448"],["19175.37","0.01200000"],["19178.25","1.50000000"],["19178.80","0.49770000"],["19181.18","0.00166667"],["19182.75","1.77297176"],["19182.76","2.61099999"],["19183.03","1.20000000"],["19185.17","6.00352761"],["19189.56","0.05797137"],["19189.72","1.17000000"],["19193.94","1.60000000"],["19197.15","0.26961100"],["19200.00","0.03107838"],["19200.06","1.29000000"],["19202.73","1.65670000"],["19206.06","1.30000000"],["19208.19","6.00352761"],["19209.00","0.00132021"],["19210.70","1.20000000"],["19213.77","0.02615500"],["19217.40","8.50000000"],["19217.57","1.29000000"],["19222.61","1.19000000"],["19230.00","0.00193480"],["19231.24","6.00000000"],["19237.91","6.89152278"],["19240.13","6.90000000"],["19242.16","0.00336000"],["19243.38","0.00299103"],["19244.48","14.79300000"],["19248.25","0.01300000"],["19250.00","1.95802492"],["19251.00","0.45000000"],["19254.20","0.00366102"],["19254.32","6.00000000"],["19259.00","0.00131022"],["19266.43","0.00917191"],["19267.63","0.05000000"],["19267.79","7.10000000"],["19268.72","16.60260000"],["19277.42","6.00000000"],["19286.64","0.00916230"],["19295.49","7.77000000"],["19300.00","0.19668172"],["19306.00","0.06000000"],["19307.00","3.00000000"],["19307.40","0.19000000"],["19309.00","0.00262046"],["19310.33","0.02602500"],["19319.33","0.00213688"],["19320.00","0.00171242"],["19321.02","48.47300000"],["19322.74","0.00250000"],["19324.00","0.36983571"],["19325.54","0.02314521"],["19325.73","7.22000000"],["19326.50","0.00915272"]]},"channel":"order_book_btcusd","event":"data"}`)
 	err := b.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
@@ -678,7 +652,7 @@ func TestBitstamp_OHLC(t *testing.T) {
 }
 
 func TestBitstamp_GetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("btcusd")
+	currencyPair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -692,7 +666,7 @@ func TestBitstamp_GetHistoricCandles(t *testing.T) {
 }
 
 func TestBitstamp_GetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("btcusd")
+	currencyPair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -701,5 +675,29 @@ func TestBitstamp_GetHistoricCandlesExtended(t *testing.T) {
 	_, err = b.GetHistoricCandlesExtended(currencyPair, asset.Spot, start, end, kline.OneDay)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("LTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetRecentTrades(currencyPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("LTCUSD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetHistoricTrades(currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Error(err)
 	}
 }

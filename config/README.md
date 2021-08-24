@@ -1,9 +1,9 @@
 # GoCryptoTrader package Config
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
-[![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
+[![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/config)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
@@ -24,21 +24,21 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
  + Contains configurations for:
 
-    - Exchanges for utilisation of a broad or minimal amount of enabled
-    exchanges [Example](#enable-exchange-via-config-example) for
-    enabling an exchange.
+	- Exchanges for utilisation of a broad or minimal amount of enabled
+	exchanges [Example](#enable-exchange-via-config-example) for
+	enabling an exchange.
 
-    - Bank accounts for withdrawal and depositing FIAT between exchange and
-    your personal accounts [Example](#enable-bank-accounts-via-config-example).
+	- Bank accounts for withdrawal and depositing FIAT between exchange and
+	your personal accounts [Example](#enable-bank-accounts-via-config-example).
 
-    - Portfolio to monitor online and offline accounts [Example](#enable-portfolio-via-config-example).
+	- Portfolio to monitor online and offline accounts [Example](#enable-portfolio-via-config-example).
 
-    - Currency configurations to set your foreign exchange provider accounts,
-    your preferred display currency, suitable FIAT currency and suitable
-    cryptocurrency [Example](#enable-currency-via-config-example).
+	- Currency configurations to set your foreign exchange provider accounts,
+	your preferred display currency, suitable FIAT currency and suitable
+	cryptocurrency [Example](#enable-currency-via-config-example).
 
-    - Communication for utilisation of supported communication mediums e.g.
-    email events direct to your personal account [Example](#enable-communications-via-config-example).
+	- Communication for utilisation of supported communication mediums e.g.
+	email events direct to your personal account [Example](#enable-communications-via-config-example).
 
 # Config Examples
 

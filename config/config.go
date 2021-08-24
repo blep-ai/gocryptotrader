@@ -2,12 +2,13 @@ package config
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -17,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
+	"github.com/thrasher-corp/gocryptotrader/communications/base"
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
@@ -170,7 +172,7 @@ func (c *Config) PurgeExchangeAPICredentials() {
 }
 
 // GetCommunicationsConfig returns the communications configuration
-func (c *Config) GetCommunicationsConfig() CommunicationsConfig {
+func (c *Config) GetCommunicationsConfig() base.CommunicationsConfig {
 	m.Lock()
 	comms := c.Communications
 	m.Unlock()
@@ -179,7 +181,7 @@ func (c *Config) GetCommunicationsConfig() CommunicationsConfig {
 
 // UpdateCommunicationsConfig sets a new updated version of a Communications
 // configuration
-func (c *Config) UpdateCommunicationsConfig(config *CommunicationsConfig) {
+func (c *Config) UpdateCommunicationsConfig(config *base.CommunicationsConfig) {
 	m.Lock()
 	c.Communications = *config
 	m.Unlock()
@@ -210,7 +212,7 @@ func (c *Config) CheckCommunicationsConfig() {
 	// with example settings
 
 	if c.Communications.SlackConfig.Name == "" {
-		c.Communications.SlackConfig = SlackConfig{
+		c.Communications.SlackConfig = base.SlackConfig{
 			Name:              "Slack",
 			TargetChannel:     "general",
 			VerificationToken: "testtest",
@@ -220,7 +222,7 @@ func (c *Config) CheckCommunicationsConfig() {
 	if c.Communications.SMSGlobalConfig.Name == "" {
 		if c.SMS != nil {
 			if c.SMS.Contacts != nil {
-				c.Communications.SMSGlobalConfig = SMSGlobalConfig{
+				c.Communications.SMSGlobalConfig = base.SMSGlobalConfig{
 					Name:     "SMSGlobal",
 					Enabled:  c.SMS.Enabled,
 					Verbose:  c.SMS.Verbose,
@@ -231,13 +233,13 @@ func (c *Config) CheckCommunicationsConfig() {
 				// flush old SMS config
 				c.SMS = nil
 			} else {
-				c.Communications.SMSGlobalConfig = SMSGlobalConfig{
+				c.Communications.SMSGlobalConfig = base.SMSGlobalConfig{
 					Name:     "SMSGlobal",
 					From:     c.Name,
 					Username: "main",
 					Password: "test",
 
-					Contacts: []SMSContact{
+					Contacts: []base.SMSContact{
 						{
 							Name:    "bob",
 							Number:  "1234",
@@ -247,12 +249,12 @@ func (c *Config) CheckCommunicationsConfig() {
 				}
 			}
 		} else {
-			c.Communications.SMSGlobalConfig = SMSGlobalConfig{
+			c.Communications.SMSGlobalConfig = base.SMSGlobalConfig{
 				Name:     "SMSGlobal",
 				Username: "main",
 				Password: "test",
 
-				Contacts: []SMSContact{
+				Contacts: []base.SMSContact{
 					{
 						Name:    "bob",
 						Number:  "1234",
@@ -278,7 +280,7 @@ func (c *Config) CheckCommunicationsConfig() {
 	}
 
 	if c.Communications.SMTPConfig.Name == "" {
-		c.Communications.SMTPConfig = SMTPConfig{
+		c.Communications.SMTPConfig = base.SMTPConfig{
 			Name:            "SMTP",
 			Host:            "smtp.google.com",
 			Port:            "537",
@@ -289,7 +291,7 @@ func (c *Config) CheckCommunicationsConfig() {
 	}
 
 	if c.Communications.TelegramConfig.Name == "" {
-		c.Communications.TelegramConfig = TelegramConfig{
+		c.Communications.TelegramConfig = base.TelegramConfig{
 			Name:              "Telegram",
 			VerificationToken: "testest",
 		}
@@ -345,7 +347,7 @@ func (c *Config) GetExchangeAssetTypes(exchName string) (asset.Items, error) {
 		return nil, fmt.Errorf("exchange %s currency pairs is nil", exchName)
 	}
 
-	return exchCfg.CurrencyPairs.GetAssetTypes(), nil
+	return exchCfg.CurrencyPairs.GetAssetTypes(false), nil
 }
 
 // SupportsExchangeAssetType returns whether or not the exchange supports the supplied asset type
@@ -359,13 +361,13 @@ func (c *Config) SupportsExchangeAssetType(exchName string, assetType asset.Item
 		return fmt.Errorf("exchange %s currency pairs is nil", exchName)
 	}
 
-	if !asset.IsValid(assetType) {
+	if !assetType.IsValid() {
 		return fmt.Errorf("exchange %s invalid asset type %s",
 			exchName,
 			assetType)
 	}
 
-	if !exchCfg.CurrencyPairs.GetAssetTypes().Contains(assetType) {
+	if !exchCfg.CurrencyPairs.GetAssetTypes(false).Contains(assetType) {
 		return fmt.Errorf("exchange %s unsupported asset type %s",
 			exchName,
 			assetType)
@@ -748,7 +750,7 @@ func (c *Config) GetExchangeConfig(name string) (*ExchangeConfig, error) {
 			return &c.Exchanges[i], nil
 		}
 	}
-	return nil, fmt.Errorf(ErrExchangeNotFound, name)
+	return nil, fmt.Errorf("%s %w", name, ErrExchangeNotFound)
 }
 
 // GetForexProvider returns a forex provider configuration by its name
@@ -793,7 +795,7 @@ func (c *Config) UpdateExchangeConfig(e *ExchangeConfig) error {
 			return nil
 		}
 	}
-	return fmt.Errorf(ErrExchangeNotFound, e.Name)
+	return fmt.Errorf("%s %w", e.Name, ErrExchangeNotFound)
 }
 
 // CheckExchangeConfigValues returns configuation values for all enabled
@@ -831,13 +833,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 				c.Exchanges[i].API.Credentials.ClientID = *c.Exchanges[i].ClientID
 			}
 
-			if c.Exchanges[i].WebsocketURL != nil {
-				c.Exchanges[i].API.Endpoints.WebsocketURL = *c.Exchanges[i].WebsocketURL
-			}
-
-			c.Exchanges[i].API.Endpoints.URL = *c.Exchanges[i].APIURL
-			c.Exchanges[i].API.Endpoints.URLSecondary = *c.Exchanges[i].APIURLSecondary
-
 			// Flush settings
 			c.Exchanges[i].AuthenticatedAPISupport = nil
 			c.Exchanges[i].AuthenticatedWebsocketAPISupport = nil
@@ -864,26 +859,6 @@ func (c *Config) CheckExchangeConfigValues() error {
 		if c.Exchanges[i].Websocket != nil {
 			c.Exchanges[i].Features.Enabled.Websocket = *c.Exchanges[i].Websocket
 			c.Exchanges[i].Websocket = nil
-		}
-
-		if c.Exchanges[i].API.Endpoints.URL != APIURLNonDefaultMessage {
-			if c.Exchanges[i].API.Endpoints.URL == "" {
-				// Set default if nothing set
-				c.Exchanges[i].API.Endpoints.URL = APIURLNonDefaultMessage
-			}
-		}
-
-		if c.Exchanges[i].API.Endpoints.URLSecondary != APIURLNonDefaultMessage {
-			if c.Exchanges[i].API.Endpoints.URLSecondary == "" {
-				// Set default if nothing set
-				c.Exchanges[i].API.Endpoints.URLSecondary = APIURLNonDefaultMessage
-			}
-		}
-
-		if c.Exchanges[i].API.Endpoints.WebsocketURL != WebsocketURLNonDefaultMessage {
-			if c.Exchanges[i].API.Endpoints.WebsocketURL == "" {
-				c.Exchanges[i].API.Endpoints.WebsocketURL = WebsocketURLNonDefaultMessage
-			}
 		}
 
 		// Check if see if the new currency pairs format is empty and flesh it out if so
@@ -924,7 +899,7 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].AvailablePairs = nil
 			c.Exchanges[i].EnabledPairs = nil
 		} else {
-			assets := c.Exchanges[i].CurrencyPairs.GetAssetTypes()
+			assets := c.Exchanges[i].CurrencyPairs.GetAssetTypes(false)
 			var atLeastOne bool
 			for index := range assets {
 				err := c.Exchanges[i].CurrencyPairs.IsAssetEnabled(assets[index])
@@ -1040,12 +1015,12 @@ func (c *Config) CheckExchangeConfigValues() error {
 					defaultWebsocketTrafficTimeout)
 				c.Exchanges[i].WebsocketTrafficTimeout = defaultWebsocketTrafficTimeout
 			}
-			if c.Exchanges[i].WebsocketOrderbookBufferLimit <= 0 {
+			if c.Exchanges[i].OrderbookConfig.WebsocketBufferLimit <= 0 {
 				log.Warnf(log.ConfigMgr,
 					"Exchange %s Websocket orderbook buffer limit value not set, defaulting to %v.",
 					c.Exchanges[i].Name,
 					defaultWebsocketOrderbookBufferLimit)
-				c.Exchanges[i].WebsocketOrderbookBufferLimit = defaultWebsocketOrderbookBufferLimit
+				c.Exchanges[i].OrderbookConfig.WebsocketBufferLimit = defaultWebsocketOrderbookBufferLimit
 			}
 			err := c.CheckPairConsistency(c.Exchanges[i].Name)
 			if err != nil {
@@ -1087,7 +1062,7 @@ func (c *Config) CheckBankAccountConfig() {
 			}
 		}
 	}
-	banking.Accounts = c.BankAccounts
+	banking.SetAccounts(c.BankAccounts...)
 }
 
 // CheckCurrencyConfigValues checks to see if the currency config values are correct or not
@@ -1112,11 +1087,12 @@ func (c *Config) CheckCurrencyConfigValues() error {
 	count := 0
 	for i := range c.Currency.ForexProviders {
 		if c.Currency.ForexProviders[i].Enabled {
-			if c.Currency.ForexProviders[i].Name == "CurrencyConverter" &&
+			if (c.Currency.ForexProviders[i].Name == "CurrencyConverter" || c.Currency.ForexProviders[i].Name == "ExchangeRates") &&
 				c.Currency.ForexProviders[i].PrimaryProvider &&
 				(c.Currency.ForexProviders[i].APIKey == "" ||
 					c.Currency.ForexProviders[i].APIKey == DefaultUnsetAPIKey) {
-				log.Warnln(log.Global, "CurrencyConverter forex provider no longer supports unset API key requests. Switching to ExchangeRates FX provider..")
+				log.Warnf(log.Global, "%s forex provider no longer supports unset API key requests. Switching to %s FX provider..",
+					c.Currency.ForexProviders[i].Name, DefaultForexProviderExchangeRatesAPI)
 				c.Currency.ForexProviders[i].Enabled = false
 				c.Currency.ForexProviders[i].PrimaryProvider = false
 				c.Currency.ForexProviders[i].APIKey = DefaultUnsetAPIKey
@@ -1144,7 +1120,8 @@ func (c *Config) CheckCurrencyConfigValues() error {
 			if c.Currency.ForexProviders[x].Name == DefaultForexProviderExchangeRatesAPI {
 				c.Currency.ForexProviders[x].Enabled = true
 				c.Currency.ForexProviders[x].PrimaryProvider = true
-				log.Warnln(log.ConfigMgr, "Using ExchangeRatesAPI for default forex provider.")
+				log.Warnf(log.ConfigMgr, "No valid forex providers configured. Defaulting to %s.",
+					DefaultForexProviderExchangeRatesAPI)
 			}
 		}
 	}
@@ -1303,7 +1280,7 @@ func (c *Config) CheckLoggerConfig() error {
 	log.GlobalLogConfig = &c.Logging
 	log.RWM.Unlock()
 
-	logPath := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "logs")
+	logPath := c.GetDataPath("logs")
 	err := common.CreateDir(logPath)
 	if err != nil {
 		return err
@@ -1325,7 +1302,7 @@ func (c *Config) checkGCTScriptConfig() error {
 		c.GCTScript.MaxVirtualMachines = gctscript.DefaultMaxVirtualMachines
 	}
 
-	scriptPath := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "scripts")
+	scriptPath := c.GetDataPath("scripts")
 	err := common.CreateDir(scriptPath)
 	if err != nil {
 		return err
@@ -1338,7 +1315,6 @@ func (c *Config) checkGCTScriptConfig() error {
 	}
 
 	gctscript.ScriptPath = scriptPath
-	gctscript.GCTScriptConfig = &c.GCTScript
 
 	return nil
 }
@@ -1362,7 +1338,7 @@ func (c *Config) checkDatabaseConfig() error {
 	}
 
 	if c.Database.Driver == database.DBSQLite || c.Database.Driver == database.DBSQLite3 {
-		databaseDir := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), "/database")
+		databaseDir := c.GetDataPath("database")
 		err := common.CreateDir(databaseDir)
 		if err != nil {
 			return err
@@ -1370,9 +1346,7 @@ func (c *Config) checkDatabaseConfig() error {
 		database.DB.DataPath = databaseDir
 	}
 
-	database.DB.Config = &c.Database
-
-	return nil
+	return database.DB.SetConfig(&c.Database)
 }
 
 // CheckNTPConfig checks for missing or incorrectly configured NTPClient and recreates with known safe defaults
@@ -1396,14 +1370,14 @@ func (c *Config) CheckNTPConfig() {
 	}
 }
 
-// DisableNTPCheck allows the user to change how they are prompted for timesync alerts
-func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
+// SetNTPCheck allows the user to change how they are prompted for timesync alerts
+func (c *Config) SetNTPCheck(input io.Reader) (string, error) {
 	m.Lock()
 	defer m.Unlock()
 
 	reader := bufio.NewReader(input)
 	log.Warnln(log.ConfigMgr, "Your system time is out of sync, this may cause issues with trading")
-	log.Warnln(log.ConfigMgr, "How would you like to show future notifications? (a)lert / (w)arn / (d)isable")
+	log.Warnln(log.ConfigMgr, "How would you like to show future notifications? (a)lert at startup / (w)arn periodically / (d)isable")
 
 	var resp string
 	answered := false
@@ -1435,6 +1409,19 @@ func (c *Config) DisableNTPCheck(input io.Reader) (string, error) {
 	return resp, nil
 }
 
+// CheckDataHistoryMonitorConfig ensures the data history config is
+// valid, or sets default values
+func (c *Config) CheckDataHistoryMonitorConfig() {
+	m.Lock()
+	defer m.Unlock()
+	if c.DataHistoryManager.CheckInterval <= 0 {
+		c.DataHistoryManager.CheckInterval = defaultDataHistoryMonitorCheckTimer
+	}
+	if c.DataHistoryManager.MaxJobsPerCycle == 0 {
+		c.DataHistoryManager.MaxJobsPerCycle = defaultMaxJobsPerCycle
+	}
+}
+
 // CheckConnectionMonitorConfig checks and if zero value assigns default values
 func (c *Config) CheckConnectionMonitorConfig() {
 	m.Lock()
@@ -1458,230 +1445,255 @@ func (c *Config) CheckConnectionMonitorConfig() {
 // Windows: %APPDATA%\GoCryptoTrader\config.json or config.dat
 // Helpful for printing application usage
 func DefaultFilePath() string {
-	f := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), File)
-	if !file.Exists(f) {
-		encFile := filepath.Join(common.GetDefaultDataDir(runtime.GOOS), EncryptedFile)
-		if file.Exists(encFile) {
-			return encFile
-		}
+	foundConfig, _, err := GetFilePath("")
+	if err != nil {
+		// If there was no config file, show default location for .json
+		return filepath.Join(common.GetDefaultDataDir(runtime.GOOS), File)
 	}
-	return f
+	return foundConfig
+}
+
+// GetAndMigrateDefaultPath returns the target config file
+// migrating it from the old default location to new one,
+// if it was implicitly loaded from a default location and
+// wasn't already in the correct 'new' default location
+func GetAndMigrateDefaultPath(configFile string) (string, error) {
+	filePath, wasDefault, err := GetFilePath(configFile)
+	if err != nil {
+		return "", err
+	}
+	if wasDefault {
+		return migrateConfig(filePath, common.GetDefaultDataDir(runtime.GOOS))
+	}
+	return filePath, nil
 }
 
 // GetFilePath returns the desired config file or the default config file name
-// based on if the application is being run under test or normal mode. It will
-// also move/rename the config file under the following conditions:
-// 1) If a config file is found in the executable path directory and no explicit
-//    config path is set, plus no config is found in the GCT data dir, it will
-//    move it to the GCT data dir. If a config already exists in the GCT data
-//    dir, it will warn the user and load the config found in the GCT data dir
-// 2) If a config file in the GCT data dir has the file extension .dat but
-//    contains json data, it will rename to the file to config.json
-// 3) If a config file in the GCT data dir has the file extension .json but
-//    contains encrypted data, it will rename the file to config.dat
-func GetFilePath(configfile string) (string, error) {
-	if configfile != "" {
-		return configfile, nil
-	}
-
-	if flag.Lookup("test.v") != nil && !testBypass {
-		return TestFile, nil
+// and whether it was loaded from a default location (rather than explicitly specified)
+func GetFilePath(configFile string) (configPath string, isImplicitDefaultPath bool, err error) {
+	if configFile != "" {
+		return configFile, false, nil
 	}
 
 	exePath, err := common.GetExecutablePath()
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
-
-	oldDirs := []string{
+	newDir := common.GetDefaultDataDir(runtime.GOOS)
+	defaultPaths := []string{
 		filepath.Join(exePath, File),
 		filepath.Join(exePath, EncryptedFile),
-	}
-
-	newDir := common.GetDefaultDataDir(runtime.GOOS)
-	err = common.CreateDir(newDir)
-	if err != nil {
-		return "", err
-	}
-	newDirs := []string{
 		filepath.Join(newDir, File),
 		filepath.Join(newDir, EncryptedFile),
 	}
 
-	// First upgrade the old dir config file if it exists to the corresponding
-	// new one
-	for x := range oldDirs {
-		if !file.Exists(oldDirs[x]) {
-			continue
-		}
-		if file.Exists(newDirs[x]) {
-			log.Warnf(log.ConfigMgr,
-				"config.json file found in root dir and gct dir; cannot overwrite, defaulting to gct dir config.json at %s",
-				newDirs[x])
-			return newDirs[x], nil
-		}
-		if filepath.Ext(oldDirs[x]) == ".json" {
-			err = file.Move(oldDirs[x], newDirs[0])
-			if err != nil {
-				return "", err
-			}
-			log.Debugf(log.ConfigMgr,
-				"Renamed old config file %s to %s\n",
-				oldDirs[x],
-				newDirs[0])
-		} else {
-			err = file.Move(oldDirs[x], newDirs[1])
-			if err != nil {
-				return "", err
-			}
-			log.Debugf(log.ConfigMgr,
-				"Renamed old config file %s to %s\n",
-				oldDirs[x],
-				newDirs[1])
+	for _, p := range defaultPaths {
+		if file.Exists(p) {
+			configFile = p
+			break
 		}
 	}
-
-	// Secondly check to see if the new config file extension is correct or not
-	for x := range newDirs {
-		if !file.Exists(newDirs[x]) {
-			continue
-		}
-
-		data, err := ioutil.ReadFile(newDirs[x])
-		if err != nil {
-			return "", err
-		}
-
-		if ConfirmECS(data) {
-			if filepath.Ext(newDirs[x]) == ".dat" {
-				return newDirs[x], nil
-			}
-
-			err = file.Move(newDirs[x], newDirs[1])
-			if err != nil {
-				return "", err
-			}
-			return newDirs[1], nil
-		}
-
-		if filepath.Ext(newDirs[x]) == ".json" {
-			return newDirs[x], nil
-		}
-
-		err = file.Move(newDirs[x], newDirs[0])
-		if err != nil {
-			return "", err
-		}
-
-		return newDirs[0], nil
+	if configFile == "" {
+		return "", false, fmt.Errorf("config.json file not found in %s, please follow README.md in root dir for config generation",
+			newDir)
 	}
 
-	return "", fmt.Errorf("config.json file not found in %s, please follow README.md in root dir for config generation",
-		newDir)
+	return configFile, true, nil
 }
 
-// ReadConfig verifies and checks for encryption and verifies the unencrypted
-// file contains JSON.
-func (c *Config) ReadConfig(configPath string, dryrun bool) error {
-	defaultPath, err := GetFilePath(configPath)
+// migrateConfig will move the config file to the target
+// config directory as `File` or `EncryptedFile` depending on whether the config
+// is encrypted
+func migrateConfig(configFile, targetDir string) (string, error) {
+	data, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		return "", err
+	}
+
+	var target string
+	if ConfirmECS(data) {
+		target = EncryptedFile
+	} else {
+		target = File
+	}
+	target = filepath.Join(targetDir, target)
+	if configFile == target {
+		return configFile, nil
+	}
+	if file.Exists(target) {
+		log.Warnf(log.ConfigMgr, "config file already found in '%s'; not overwriting, defaulting to %s", target, configFile)
+		return configFile, nil
+	}
+
+	err = file.Move(configFile, target)
+	if err != nil {
+		return "", err
+	}
+
+	return target, nil
+}
+
+// ReadConfigFromFile reads the configuration from the given file
+// if target file is encrypted, prompts for encryption key
+// Also - if not in dryrun mode - it checks if the configuration needs to be encrypted
+// and stores the file as encrypted, if necessary (prompting for enryption key)
+func (c *Config) ReadConfigFromFile(configPath string, dryrun bool) error {
+	defaultPath, _, err := GetFilePath(configPath)
 	if err != nil {
 		return err
 	}
-
-	fileData, err := ioutil.ReadFile(defaultPath)
+	confFile, err := os.Open(defaultPath)
 	if err != nil {
 		return err
 	}
+	defer confFile.Close()
+	result, wasEncrypted, err := ReadConfig(confFile, func() ([]byte, error) { return PromptForConfigKey(false) })
+	if err != nil {
+		return fmt.Errorf("error reading config %w", err)
+	}
+	// Override values in the current config
+	*c = *result
 
-	if !ConfirmECS(fileData) {
-		err = json.Unmarshal(fileData, c)
-		if err != nil {
-			return err
-		}
-
-		if c.EncryptConfig == fileEncryptionDisabled {
-			return nil
-		}
-
-		if c.EncryptConfig == fileEncryptionPrompt {
-			m.Lock()
-			IsInitialSetup = true
-			m.Unlock()
-			if c.PromptForConfigEncryption(configPath, dryrun) {
-				c.EncryptConfig = fileEncryptionEnabled
-				return c.SaveConfig(defaultPath, dryrun)
-			}
-		}
+	if dryrun || wasEncrypted || c.EncryptConfig == fileEncryptionDisabled {
 		return nil
 	}
 
-	errCounter := 0
-	for {
-		if errCounter >= maxAuthFailures {
-			return errors.New("failed to decrypt config after 3 attempts")
-		}
-		key, err := PromptForConfigKey(IsInitialSetup)
+	if c.EncryptConfig == fileEncryptionPrompt {
+		confirm, err := promptForConfigEncryption()
 		if err != nil {
-			log.Errorf(log.ConfigMgr, "PromptForConfigKey err: %s", err)
-			errCounter++
-			continue
+			log.Errorf(log.ConfigMgr, "The encryption prompt failed, ignoring for now, next time we will prompt again. Error: %s\n", err)
+			return nil
+		}
+		if confirm {
+			c.EncryptConfig = fileEncryptionEnabled
+			return c.SaveConfigToFile(defaultPath)
 		}
 
-		var f []byte
-		f = append(f, fileData...)
-		data, err := DecryptConfigFile(f, key)
+		c.EncryptConfig = fileEncryptionDisabled
+		err = c.SaveConfigToFile(defaultPath)
 		if err != nil {
-			log.Errorf(log.ConfigMgr, "DecryptConfigFile err: %s", err)
-			errCounter++
-			continue
+			log.Errorf(log.ConfigMgr, "Cannot save config. Error: %s\n", err)
 		}
-
-		err = json.Unmarshal(data, c)
-		if err != nil {
-			if errCounter < maxAuthFailures {
-				log.Error(log.ConfigMgr, "Invalid password.")
-			}
-			errCounter++
-			continue
-		}
-		break
 	}
 	return nil
 }
 
-// SaveConfig saves your configuration to your desired path
-func (c *Config) SaveConfig(configPath string, dryrun bool) error {
-	if dryrun {
-		return nil
+// ReadConfig verifies and checks for encryption and loads the config from a JSON object.
+// Prompts for decryption key, if target data is encrypted.
+// Returns the loaded configuration and whether it was encrypted.
+func ReadConfig(configReader io.Reader, keyProvider func() ([]byte, error)) (*Config, bool, error) {
+	reader := bufio.NewReader(configReader)
+
+	pref, err := reader.Peek(len(EncryptConfirmString))
+	if err != nil {
+		return nil, false, err
 	}
 
-	defaultPath, err := GetFilePath(configPath)
+	if !ConfirmECS(pref) {
+		// Read unencrypted configuration
+		decoder := json.NewDecoder(reader)
+		c := &Config{}
+		err = decoder.Decode(c)
+		return c, false, err
+	}
+
+	conf, err := readEncryptedConfWithKey(reader, keyProvider)
+	return conf, true, err
+}
+
+// readEncryptedConf reads encrypted configuration and requests key from provider
+func readEncryptedConfWithKey(reader *bufio.Reader, keyProvider func() ([]byte, error)) (*Config, error) {
+	fileData, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	for errCounter := 0; errCounter < maxAuthFailures; errCounter++ {
+		key, err := keyProvider()
+		if err != nil {
+			log.Errorf(log.ConfigMgr, "PromptForConfigKey err: %s", err)
+			continue
+		}
+
+		var c *Config
+		c, err = readEncryptedConf(bytes.NewReader(fileData), key)
+		if err != nil {
+			log.Error(log.ConfigMgr, "Could not decrypt and deserialise data with given key. Invalid password?", err)
+			continue
+		}
+		return c, nil
+	}
+	return nil, errors.New("failed to decrypt config after 3 attempts")
+}
+
+func readEncryptedConf(reader io.Reader, key []byte) (*Config, error) {
+	c := &Config{}
+	data, err := c.decryptConfigData(reader, key)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(data, c)
+	return c, err
+}
+
+// SaveConfigToFile saves your configuration to your desired path as a JSON object.
+// The function encrypts the data and prompts for encryption key, if necessary
+func (c *Config) SaveConfigToFile(configPath string) error {
+	defaultPath, _, err := GetFilePath(configPath)
 	if err != nil {
 		return err
 	}
+	var writer *os.File
+	provider := func() (io.Writer, error) {
+		writer, err = file.Writer(defaultPath)
+		return writer, err
+	}
+	defer func() {
+		if writer != nil {
+			err = writer.Close()
+			if err != nil {
+				log.Error(log.Global, err)
+			}
+		}
+	}()
+	return c.Save(provider, func() ([]byte, error) { return PromptForConfigKey(true) })
+}
 
+// Save saves your configuration to the writer as a JSON object
+// with encryption, if configured
+// If there is an error when preparing the data to store, the writer is never requested
+func (c *Config) Save(writerProvider func() (io.Writer, error), keyProvider func() ([]byte, error)) error {
 	payload, err := json.MarshalIndent(c, "", " ")
 	if err != nil {
 		return err
 	}
 
 	if c.EncryptConfig == fileEncryptionEnabled {
-		var key []byte
-
-		if IsInitialSetup {
-			key, err = PromptForConfigKey(true)
+		// Ensure we have the key from session or from user
+		if len(c.sessionDK) == 0 {
+			var key []byte
+			key, err = keyProvider()
 			if err != nil {
 				return err
 			}
-			IsInitialSetup = false
+			var sessionDK, storedSalt []byte
+			sessionDK, storedSalt, err = makeNewSessionDK(key)
+			if err != nil {
+				return err
+			}
+			c.sessionDK, c.storedSalt = sessionDK, storedSalt
 		}
-
-		payload, err = EncryptConfigFile(payload, key)
+		payload, err = c.encryptConfigFile(payload)
 		if err != nil {
 			return err
 		}
 	}
-	return file.Write(defaultPath, payload)
+	configWriter, err := writerProvider()
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(configWriter, bytes.NewReader(payload))
+	return err
 }
 
 // CheckRemoteControlConfig checks to see if the old c.Webserver field is used
@@ -1756,6 +1768,7 @@ func (c *Config) CheckConfig() error {
 	}
 
 	c.CheckConnectionMonitorConfig()
+	c.CheckDataHistoryMonitorConfig()
 	c.CheckCommunicationsConfig()
 	c.CheckClientBankAccounts()
 	c.CheckBankAccountConfig()
@@ -1782,7 +1795,7 @@ func (c *Config) CheckConfig() error {
 
 // LoadConfig loads your configuration file into your configuration object
 func (c *Config) LoadConfig(configPath string, dryrun bool) error {
-	err := c.ReadConfig(configPath, dryrun)
+	err := c.ReadConfigFromFile(configPath, dryrun)
 	if err != nil {
 		return fmt.Errorf(ErrFailureOpeningConfig, configPath, err)
 	}
@@ -1806,9 +1819,11 @@ func (c *Config) UpdateConfig(configPath string, newCfg *Config, dryrun bool) er
 	c.Webserver = newCfg.Webserver
 	c.Exchanges = newCfg.Exchanges
 
-	err = c.SaveConfig(configPath, dryrun)
-	if err != nil {
-		return err
+	if !dryrun {
+		err = c.SaveConfigToFile(configPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	return c.LoadConfig(configPath, dryrun)
@@ -1844,4 +1859,15 @@ func (c *Config) AssetTypeEnabled(a asset.Item, exch string) (bool, error) {
 		return false, nil
 	}
 	return true, nil
+}
+
+// GetDataPath gets the data path for the given subpath
+func (c *Config) GetDataPath(elem ...string) string {
+	var baseDir string
+	if c.DataDirectory != "" {
+		baseDir = c.DataDirectory
+	} else {
+		baseDir = common.GetDefaultDataDir(runtime.GOOS)
+	}
+	return filepath.Join(append([]string{baseDir}, elem...)...)
 }

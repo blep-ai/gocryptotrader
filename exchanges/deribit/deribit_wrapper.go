@@ -1,6 +1,7 @@
 package deribit
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"sync"
 	"time"
 
@@ -79,8 +80,8 @@ func (de *Deribit) SetDefaults() {
 	}
 
 	//optfmt := currency.PairStore{
-		//RequestFormat: &currency.PairFormat{Uppercase: true},
-		//ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
+	//RequestFormat: &currency.PairFormat{Uppercase: true},
+	//ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
 	//}
 
 	err = de.StoreAssetPairFormat(asset.Futures, futsfmt)
@@ -93,7 +94,7 @@ func (de *Deribit) SetDefaults() {
 	}
 	//err = de.StoreAssetPairFormat(asset.Option, fmt2)
 	//if err != nil {
-		//log.Errorln(log.ExchangeSys, err)
+	//log.Errorln(log.ExchangeSys, err)
 	//}
 
 	// Fill out the capabilities/features that the exchange supports
@@ -119,9 +120,14 @@ func (de *Deribit) SetDefaults() {
 	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
 	de.Requester = request.New(de.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-
-	de.API.Endpoints.URLDefault = deribitAPIURL
-	de.API.Endpoints.URL = de.API.Endpoints.URLDefault
+	de.API.Endpoints = de.NewEndpoints()
+	err = de.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot: deribitAPIURL,
+		exchange.WebsocketSpot: deribitWSURL,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	de.Websocket = stream.New()
 	de.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	de.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -140,6 +146,11 @@ func (de *Deribit) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	wsRunningURL, err := de.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
 	// If websocket is supported, please fill out the following
 	err = de.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
@@ -148,7 +159,7 @@ func (de *Deribit) Setup(exch *config.ExchangeConfig) error {
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
 		DefaultURL:                       deribitWSURL,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		RunningURL:                       wsRunningURL,
 		Connector:                        de.WsConnect,
 		Subscriber:                       de.Subscribe,
 		UnSubscriber:                     de.Unsubscribe,
@@ -263,7 +274,12 @@ func (de *Deribit) FetchOrderbook(currency currency.Pair, assetType asset.Item) 
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (de *Deribit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
+	orderBook := &orderbook.Base{
+		Exchange:        de.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: de.CanVerifyOrderbook,
+	}
 	// NOTE: UPDATE ORDERBOOK EXAMPLE
 	/*
 		orderbookNew, err := de.GetOrderBook(exchange.FormatExchangeCurrency(de.Name, p).String(), 1000)
@@ -286,10 +302,6 @@ func (de *Deribit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 		}
 	*/
 
-	orderBook.Pair = p
-	orderBook.ExchangeName = de.Name
-	orderBook.AssetType = assetType
-
 	err := orderBook.Process()
 	if err != nil {
 		return orderBook, err
@@ -299,12 +311,12 @@ func (de *Deribit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orde
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (de *Deribit) UpdateAccountInfo() (account.Holdings, error) {
+func (de *Deribit) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	return account.Holdings{}, common.ErrNotYetImplemented
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (de *Deribit) FetchAccountInfo() (account.Holdings, error) {
+func (de *Deribit) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	return account.Holdings{}, common.ErrNotYetImplemented
 }
 
@@ -314,10 +326,10 @@ func (de *Deribit) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (de *Deribit) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
-	return nil, common.ErrNotYetImplemented
-}
+//// GetExchangeHistory returns historic trade data within the timeframe provided.
+//func (de *Deribit) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
+//	return nil, common.ErrNotYetImplemented
+//}
 
 // SubmitOrder submits a new order
 func (de *Deribit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
@@ -345,7 +357,7 @@ func (de *Deribit) CancelAllOrders(orderCancellation *order.Cancel) (order.Cance
 }
 
 // GetOrderInfo returns information on a current open order
-func (de *Deribit) GetOrderInfo(orderID string) (order.Detail, error) {
+func (de *Deribit) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	return order.Detail{}, common.ErrNotYetImplemented
 }
 
@@ -389,8 +401,8 @@ func (de *Deribit) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error
 }
 
 // ValidateCredentials validates current credentials used for wrapper
-func (de *Deribit) ValidateCredentials() error {
-	_, err := de.UpdateAccountInfo()
+func (de *Deribit) ValidateCredentials(assetType asset.Item) error {
+	_, err := de.UpdateAccountInfo(assetType)
 	return de.CheckTransientError(err)
 }
 
@@ -402,4 +414,20 @@ func (de *Deribit) GetHistoricCandles(pair currency.Pair, a asset.Item, start, e
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (de *Deribit) GetHistoricCandlesExtended(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
 	return kline.Item{}, common.ErrNotYetImplemented
+}
+
+func (de *Deribit) GetRecentTrades(p currency.Pair, a asset.Item) ([]trade.Data, error) {
+	panic("implement me")
+}
+
+func (de *Deribit) GetHistoricTrades(p currency.Pair, a asset.Item, startTime, endTime time.Time) ([]trade.Data, error) {
+	panic("implement me")
+}
+
+func (de *Deribit) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+	panic("implement me")
+}
+
+func (de *Deribit) GetWithdrawalsHistory(code currency.Code) ([]exchange.WithdrawalHistory, error) {
+	panic("implement me")
 }

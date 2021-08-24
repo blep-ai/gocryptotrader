@@ -59,6 +59,7 @@ var (
 	EOS        = NewCode("EOS")
 	XLM        = NewCode("XLM")
 	USDT       = NewCode("USDT")
+	USDC       = NewCode("USDC")
 	ADA        = NewCode("ADA")
 	XMR        = NewCode("XMR")
 	TRX        = NewCode("TRX")
@@ -334,6 +335,7 @@ var (
 	PHX        = NewCode("PHX")
 	GO         = NewCode("GO")
 	PAX        = NewCode("PAX")
+	PAXG       = NewCode("PAXG")
 	EDO        = NewCode("EDO")
 	WINGS      = NewCode("WINGS")
 	NAV        = NewCode("NAV")
@@ -1538,7 +1540,9 @@ var (
 	PDX        = NewCode("PDX")
 	SLT        = NewCode("SLT")
 	HPY        = NewCode("HPY")
+	XXRP       = NewCode("XXRP") // XRP
 	XXBT       = NewCode("XXBT") // BTC, but XXBT instead
+	XXDG       = NewCode("XXDG") // DOGE
 	XDG        = NewCode("XDG")  // DOGE
 	HKD        = NewCode("HKD")  // Hong Kong Dollar
 	AUD        = NewCode("AUD")  // Australian Dollar
@@ -1651,4 +1655,14 @@ var (
 	ZWD        = NewCode("ZWD")
 	XETH       = NewCode("XETH")
 	FX_BTC     = NewCode("FX_BTC") // nolint // Cryptocurrency code
+	AAVE       = NewCode("AAVE")
+	YFI        = NewCode("YFI")
+	BAL        = NewCode("BAL")
+	UMA        = NewCode("UMA")
+	SNX        = NewCode("SNX")
+	CRV        = NewCode("CRV")
+	OXT        = NewCode("OXT")
+	BUSD       = NewCode("BUSD")
+	SRM        = NewCode("SRM")
+	FTT        = NewCode("FTT")
 )

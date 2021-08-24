@@ -1,9 +1,9 @@
 # GoCryptoTrader package Okcoin
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
-[![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
+[![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/okcoin)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
@@ -32,8 +32,8 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + Individual package example below:
 
 ```go
-  // Exchanges will be abstracted out in further updates and examples will be
-  // supplied then
+	// Exchanges will be abstracted out in further updates and examples will be
+	// supplied then
 ```
 
 ### How to do REST public/private calls
@@ -49,9 +49,9 @@ main.go
 var o exchange.IBotExchange
 
 for i := range bot.Exchanges {
-  if bot.Exchanges[i].GetName() == "OKCoin" {
-    y = bot.Exchanges[i]
-  }
+	if bot.Exchanges[i].GetName() == "OKCoin" {
+		y = bot.Exchanges[i]
+	}
 }
 
 // Public calls - wrapper functions
@@ -59,13 +59,13 @@ for i := range bot.Exchanges {
 // Fetches current ticker information
 tick, err := o.FetchTicker()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Fetches current orderbook information
 ob, err := o.FetchOrderbook()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Private calls - wrapper functions - make sure your APIKEY and APISECRET are
@@ -74,7 +74,7 @@ if err != nil {
 // Fetches current account information
 accountInfo, err := o.GetAccountInfo()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 ```
 
@@ -86,13 +86,13 @@ if err != nil {
 // Fetches current ticker information
 ticker, err := o.GetTicker()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Fetches current orderbook information
 ob, err := o.GetOrderBook()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Private calls - make sure your APIKEY and APISECRET are set and
@@ -101,21 +101,21 @@ if err != nil {
 // GetUserInfo returns account info
 accountInfo, err := o.GetUserInfo(...)
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Submits an order and the exchange and returns its tradeID
 tradeID, err := o.Trade(...)
 if err != nil {
-  // Handle error
+	// Handle error
 }
 ```
 
 ### How to do Websocket public/private calls
 
 ```go
-  // Exchanges will be abstracted out in further updates and examples will be
-  // supplied then
+	// Exchanges will be abstracted out in further updates and examples will be
+	// supplied then
 ```
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package

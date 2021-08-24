@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 const (
@@ -62,12 +63,12 @@ func TestWrapper_IsEnabled(t *testing.T) {
 func TestWrapper_AccountInformation(t *testing.T) {
 	t.Parallel()
 
-	_, err := testWrapper.AccountInformation(exchName)
+	_, err := testWrapper.AccountInformation(exchName, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = testWrapper.AccountInformation(exchError.String())
+	_, err = testWrapper.AccountInformation(exchError.String(), asset.Spot)
 	if err == nil {
 		t.Fatal("expected AccountInformation to return error on invalid name")
 	}
@@ -75,15 +76,30 @@ func TestWrapper_AccountInformation(t *testing.T) {
 
 func TestWrapper_CancelOrder(t *testing.T) {
 	t.Parallel()
-
-	_, err := testWrapper.CancelOrder(exchName, orderID)
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	_, err := testWrapper.CancelOrder(exchName, orderID, cp, assetType)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 
-	_, err = testWrapper.CancelOrder(exchError.String(), "")
+	_, err = testWrapper.CancelOrder(exchError.String(), orderID, cp, assetType)
 	if err == nil {
-		t.Fatal("expected CancelOrder to return error on invalid name")
+		t.Error("expected CancelOrder to return error on invalid name")
+	}
+
+	_, err = testWrapper.CancelOrder(exchName, "", cp, assetType)
+	if err == nil {
+		t.Error("expected CancelOrder to return error on invalid name")
+	}
+
+	_, err = testWrapper.CancelOrder(exchName, orderID, currency.Pair{}, assetType)
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = testWrapper.CancelOrder(exchName, orderID, cp, "")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -136,12 +152,12 @@ func TestWrapper_Pairs(t *testing.T) {
 func TestWrapper_QueryOrder(t *testing.T) {
 	t.Parallel()
 
-	_, err := testWrapper.QueryOrder(exchName, orderID)
+	_, err := testWrapper.QueryOrder(exchName, orderID, currency.Pair{}, assetType)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = testWrapper.QueryOrder(exchError.String(), "")
+	_, err = testWrapper.QueryOrder(exchError.String(), "", currency.Pair{}, assetType)
 	if err == nil {
 		t.Fatal("expected QueryOrder to return error on invalid name")
 	}
@@ -163,6 +179,7 @@ func TestWrapper_SubmitOrder(t *testing.T) {
 		Amount:       orderAmount,
 		ClientID:     orderClientID,
 		Exchange:     "true",
+		AssetType:    asset.Spot,
 	}
 	_, err = testWrapper.SubmitOrder(tempOrder)
 	if err != nil {
@@ -193,24 +210,24 @@ func TestWrapper_Ticker(t *testing.T) {
 }
 
 func TestWrapper_WithdrawalCryptoFunds(t *testing.T) {
-	_, err := testWrapper.WithdrawalCryptoFunds(exchError.String(), nil)
+	_, err := testWrapper.WithdrawalCryptoFunds(&withdraw.Request{Exchange: exchError.String()})
 	if err == nil {
 		t.Fatal("expected WithdrawalCryptoFunds to return error with invalid name")
 	}
 
-	_, err = testWrapper.WithdrawalCryptoFunds(exchName, nil)
+	_, err = testWrapper.WithdrawalCryptoFunds(&withdraw.Request{Exchange: exchName})
 	if err != nil {
 		t.Fatal("expected WithdrawalCryptoFunds to return error with invalid name")
 	}
 }
 
 func TestWrapper_WithdrawalFiatFunds(t *testing.T) {
-	_, err := testWrapper.WithdrawalFiatFunds(exchError.String(), "", nil)
+	_, err := testWrapper.WithdrawalFiatFunds("", &withdraw.Request{Exchange: exchError.String()})
 	if err == nil {
 		t.Fatal("expected WithdrawalFiatFunds to return error with invalid name")
 	}
 
-	_, err = testWrapper.WithdrawalFiatFunds(exchName, "", nil)
+	_, err = testWrapper.WithdrawalFiatFunds("", &withdraw.Request{Exchange: exchName})
 	if err != nil {
 		t.Fatal("expected WithdrawalCryptoFunds to return error with invalid name")
 	}

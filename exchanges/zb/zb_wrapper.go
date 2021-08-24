@@ -3,12 +3,14 @@ package zb
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -21,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -128,12 +131,15 @@ func (z *ZB) SetDefaults() {
 	z.Requester = request.New(z.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(SetRateLimit()))
-
-	z.API.Endpoints.URLDefault = zbTradeURL
-	z.API.Endpoints.URL = z.API.Endpoints.URLDefault
-	z.API.Endpoints.URLSecondaryDefault = zbMarketURL
-	z.API.Endpoints.URLSecondary = z.API.Endpoints.URLSecondaryDefault
-	z.API.Endpoints.WebsocketURL = zbWebsocketAPI
+	z.API.Endpoints = z.NewEndpoints()
+	err = z.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot:              zbTradeURL,
+		exchange.RestSpotSupplementary: zbMarketURL,
+		exchange.WebsocketSpot:         zbWebsocketAPI,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	z.Websocket = stream.New()
 	z.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	z.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -151,6 +157,11 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		return err
 	}
 
+	wsRunningURL, err := z.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
 	err = z.Websocket.Setup(&stream.WebsocketSetup{
 		Enabled:                          exch.Features.Enabled.Websocket,
 		Verbose:                          exch.Verbose,
@@ -158,12 +169,13 @@ func (z *ZB) Setup(exch *config.ExchangeConfig) error {
 		WebsocketTimeout:                 exch.WebsocketTrafficTimeout,
 		DefaultURL:                       zbWebsocketAPI,
 		ExchangeName:                     exch.Name,
-		RunningURL:                       exch.API.Endpoints.WebsocketURL,
+		RunningURL:                       wsRunningURL,
 		Connector:                        z.WsConnect,
 		GenerateSubscriptions:            z.GenerateDefaultSubscriptions,
 		Subscriber:                       z.Subscribe,
 		Features:                         &z.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
+		BufferEnabled:                    exch.OrderbookConfig.WebsocketBufferEnabled,
 	})
 	if err != nil {
 		return err
@@ -288,46 +300,45 @@ func (z *ZB) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.B
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (z *ZB) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	orderBook := new(orderbook.Base)
+	book := &orderbook.Base{
+		Exchange:        z.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: z.CanVerifyOrderbook,
+	}
 	currFormat, err := z.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	orderbookNew, err := z.GetOrderbook(currFormat.String())
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
 
 	for x := range orderbookNew.Bids {
-		orderBook.Bids = append(orderBook.Bids, orderbook.Item{
+		book.Bids = append(book.Bids, orderbook.Item{
 			Amount: orderbookNew.Bids[x][1],
 			Price:  orderbookNew.Bids[x][0],
 		})
 	}
 
 	for x := range orderbookNew.Asks {
-		orderBook.Asks = append(orderBook.Asks, orderbook.Item{
+		book.Asks = append(book.Asks, orderbook.Item{
 			Amount: orderbookNew.Asks[x][1],
 			Price:  orderbookNew.Asks[x][0],
 		})
 	}
-
-	orderBook.Pair = p
-	orderBook.AssetType = assetType
-	orderBook.ExchangeName = z.Name
-
-	err = orderBook.Process()
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
-
 	return orderbook.Get(z.Name, p, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // ZB exchange
-func (z *ZB) UpdateAccountInfo() (account.Holdings, error) {
+func (z *ZB) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var balances []account.Balance
 	var coins []AccountsResponseCoin
@@ -377,10 +388,10 @@ func (z *ZB) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (z *ZB) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(z.Name)
+func (z *ZB) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(z.Name, assetType)
 	if err != nil {
-		return z.UpdateAccountInfo()
+		return z.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -392,9 +403,55 @@ func (z *ZB) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (z *ZB) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
+// GetWithdrawalsHistory returns previous withdrawals data
+func (z *ZB) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
+}
+
+// GetRecentTrades returns the most recent trades for a currency and asset
+func (z *ZB) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	var err error
+	p, err = z.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var tradeData TradeHistory
+	tradeData, err = z.GetTrades(p.String())
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	for i := range tradeData {
+		var side order.Side
+		side, err = order.StringToOrderSide(tradeData[i].Type)
+		if err != nil {
+			return nil, err
+		}
+
+		resp = append(resp, trade.Data{
+			Exchange:     z.Name,
+			TID:          strconv.FormatInt(tradeData[i].Tid, 10),
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Side:         side,
+			Price:        tradeData[i].Price,
+			Amount:       tradeData[i].Amount,
+			Timestamp:    time.Unix(tradeData[i].Date, 0),
+		})
+	}
+
+	err = z.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Sort(trade.ByDate(resp))
+	return resp, nil
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (z *ZB) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
@@ -425,10 +482,15 @@ func (z *ZB) SubmitOrder(o *order.Submit) (order.SubmitResponse, error) {
 			oT = SpotNewOrderRequestParamsTypeSell
 		}
 
+		fPair, err := z.FormatExchangeCurrency(o.Pair, o.AssetType)
+		if err != nil {
+			return submitOrderResponse, err
+		}
+
 		var params = SpotNewOrderRequestParams{
 			Amount: o.Amount,
 			Price:  o.Price,
-			Symbol: o.Pair.Lower().String(),
+			Symbol: fPair.Lower().String(),
 			Type:   oT,
 		}
 		var response int64
@@ -455,6 +517,10 @@ func (z *ZB) ModifyOrder(action *order.Modify) (string, error) {
 
 // CancelOrder cancels an order by its corresponding ID number
 func (z *ZB) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
+
 	orderIDInt, err := strconv.ParseInt(o.ID, 10, 64)
 	if err != nil {
 		return err
@@ -476,6 +542,11 @@ func (z *ZB) CancelOrder(o *order.Cancel) error {
 		return err
 	}
 	return z.CancelExistingOrder(orderIDInt, fpair.String())
+}
+
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (z *ZB) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -523,8 +594,9 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 		}
 
 		err = z.CancelOrder(&order.Cancel{
-			ID:   strconv.FormatInt(allOpenOrders[i].ID, 10),
-			Pair: p,
+			ID:        strconv.FormatInt(allOpenOrders[i].ID, 10),
+			Pair:      p,
+			AssetType: asset.Spot,
 		})
 		if err != nil {
 			cancelAllOrdersResponse.Status[strconv.FormatInt(allOpenOrders[i].ID, 10)] = err.Error()
@@ -534,8 +606,8 @@ func (z *ZB) CancelAllOrders(_ *order.Cancel) (order.CancelAllResponse, error) {
 	return cancelAllOrdersResponse, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (z *ZB) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (z *ZB) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
@@ -553,7 +625,15 @@ func (z *ZB) GetDepositAddress(cryptocurrency currency.Code, _ string) (string, 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (z *ZB) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	v, err := z.Withdraw(withdrawRequest.Currency.Lower().String(), withdrawRequest.Crypto.Address, withdrawRequest.TradePassword, withdrawRequest.Amount, withdrawRequest.Crypto.FeeAmount, false)
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+	v, err := z.Withdraw(withdrawRequest.Currency.Lower().String(),
+		withdrawRequest.Crypto.Address,
+		withdrawRequest.TradePassword,
+		withdrawRequest.Amount,
+		withdrawRequest.Crypto.FeeAmount,
+		false)
 	if err != nil {
 		return nil, err
 	}
@@ -564,19 +644,19 @@ func (z *ZB) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*wi
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (z *ZB) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (z *ZB) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (z *ZB) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (z *ZB) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (z *ZB) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	if !z.AllowAuthenticatedRequest() && // Todo check connection status
+	if (!z.AllowAuthenticatedRequest() || z.SkipAuthCheck) && // Todo check connection status
 		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
 		feeBuilder.FeeType = exchange.OfflineTradeFee
 	}
@@ -586,6 +666,10 @@ func (z *ZB) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
 func (z *ZB) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	var allOrders []Order
 	for x := range req.Pairs {
 		for i := int64(1); ; i++ {
@@ -639,7 +723,7 @@ func (z *ZB) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	return orders, nil
 }
@@ -648,6 +732,10 @@ func (z *ZB) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
 func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	if req.Side == order.AnySide || req.Side == "" {
 		return nil, errors.New("specific order side is required")
 	}
@@ -718,14 +806,14 @@ func (z *ZB) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	return orders, nil
 }
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (z *ZB) ValidateCredentials() error {
-	_, err := z.UpdateAccountInfo()
+func (z *ZB) ValidateCredentials(assetType asset.Item) error {
+	_, err := z.UpdateAccountInfo(assetType)
 	return z.CheckTransientError(err)
 }
 
@@ -748,33 +836,27 @@ func (z *ZB) FormatExchangeKlineInterval(in kline.Interval) string {
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (z *ZB) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	if !z.KlineIntervalEnabled(interval) {
-		return kline.Item{}, kline.ErrorKline{
-			Interval: interval,
-		}
+func (z *ZB) GetHistoricCandles(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	ret, err := z.validateCandlesRequest(p, a, start, end, interval)
+	if err != nil {
+		return kline.Item{}, err
 	}
 
-	formattedPair, err := z.FormatExchangeCurrency(pair, a)
+	p, err = z.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return kline.Item{}, err
 	}
 
 	klineParams := KlinesRequestParams{
 		Type:   z.FormatExchangeKlineInterval(interval),
-		Symbol: formattedPair.String(),
+		Symbol: p.String(),
+		Since:  convert.UnixMillis(start),
+		Size:   int64(z.Features.Enabled.Kline.ResultLimit),
 	}
-
-	candles, err := z.GetSpotKline(klineParams)
+	var candles KLineResponse
+	candles, err = z.GetSpotKline(klineParams)
 	if err != nil {
 		return kline.Item{}, err
-	}
-
-	ret := kline.Item{
-		Exchange: z.Name,
-		Pair:     pair,
-		Asset:    a,
-		Interval: interval,
 	}
 
 	for x := range candles.Data {
@@ -784,7 +866,7 @@ func (z *ZB) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end tim
 		ret.Candles = append(ret.Candles, kline.Candle{
 			Time:   candles.Data[x].KlineTime,
 			Open:   candles.Data[x].Open,
-			High:   candles.Data[x].Close,
+			High:   candles.Data[x].High,
 			Low:    candles.Data[x].Low,
 			Close:  candles.Data[x].Close,
 			Volume: candles.Data[x].Volume,
@@ -797,5 +879,72 @@ func (z *ZB) GetHistoricCandles(pair currency.Pair, a asset.Item, start, end tim
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (z *ZB) GetHistoricCandlesExtended(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
-	return z.GetHistoricCandles(p, a, start, end, interval)
+	ret, err := z.validateCandlesRequest(p, a, start, end, interval)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	p, err = z.FormatExchangeCurrency(p, a)
+	if err != nil {
+		return kline.Item{}, err
+	}
+
+	startTime := start
+allKlines:
+	for {
+		klineParams := KlinesRequestParams{
+			Type:   z.FormatExchangeKlineInterval(interval),
+			Symbol: p.String(),
+			Since:  convert.UnixMillis(startTime),
+			Size:   int64(z.Features.Enabled.Kline.ResultLimit),
+		}
+
+		candles, err := z.GetSpotKline(klineParams)
+		if err != nil {
+			return kline.Item{}, err
+		}
+
+		for x := range candles.Data {
+			if candles.Data[x].KlineTime.Before(start) || candles.Data[x].KlineTime.After(end) {
+				continue
+			}
+			if startTime.Equal(candles.Data[x].KlineTime) {
+				// no new data has been sent
+				break allKlines
+			}
+			ret.Candles = append(ret.Candles, kline.Candle{
+				Time:   candles.Data[x].KlineTime,
+				Open:   candles.Data[x].Open,
+				High:   candles.Data[x].High,
+				Low:    candles.Data[x].Low,
+				Close:  candles.Data[x].Close,
+				Volume: candles.Data[x].Volume,
+			})
+			if x == len(candles.Data)-1 {
+				startTime = candles.Data[x].KlineTime
+			}
+		}
+		if len(candles.Data) != int(z.Features.Enabled.Kline.ResultLimit) {
+			break allKlines
+		}
+	}
+
+	ret.SortCandlesByTimestamp(false)
+	return ret, nil
+}
+
+func (z *ZB) validateCandlesRequest(p currency.Pair, a asset.Item, start, end time.Time, interval kline.Interval) (kline.Item, error) {
+	if err := common.StartEndTimeCheck(start, end); err != nil {
+		return kline.Item{}, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", start, end, err)
+	}
+	if err := z.ValidateKline(p, a, interval); err != nil {
+		return kline.Item{}, err
+	}
+
+	return kline.Item{
+		Exchange: z.Name,
+		Pair:     p,
+		Asset:    a,
+		Interval: interval,
+	}, nil
 }

@@ -1,16 +1,16 @@
-# GoCryptoTrader package Forexprovider
+# GoCryptoTrader package Exchangeratesapi.Io
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
-[![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
+[![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/currency/forexprovider/exchangeratesapi.io)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 
-This forexprovider package is part of the GoCryptoTrader codebase.
+This exchangeratesapi.io package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -18,7 +18,7 @@ You can track ideas, planned features and what's in progress on this Trello boar
 
 Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader Slack](https://join.slack.com/t/gocryptotrader/shared_invite/enQtNTQ5NDAxMjA2Mjc5LTc5ZDE1ZTNiOGM3ZGMyMmY1NTAxYWZhODE0MWM5N2JlZDk1NDU0YTViYzk4NTk3OTRiMDQzNGQ1YTc4YmRlMTk)
 
-## Current Features for forexprovider
+## Current Features for exchangeratesapi.io
 
 + Fetches up to date curency data from [Exchange rates API]("http://exchangeratesapi.io")
 
@@ -37,13 +37,13 @@ c := exchangerates.ExchangeRates{}
 
 // Define configuration
 newSettings := base.Settings{
-  	Name: "ExchangeRates",
-	Enabled: true,
-	Verbose: false,
+	Name:             "ExchangeRates",
+	Enabled:          true,
+	Verbose:          false,
 	RESTPollingDelay: time.Duration,
-	APIKey: "key",
-	APIKeyLvl: "keylvl",
-	PrimaryProvider: true,
+	APIKey:           "key",
+	APIKeyLvl:        "keylvl",
+	PrimaryProvider:  true,
 }
 
 c.Setup(newSettings)

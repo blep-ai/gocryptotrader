@@ -2,7 +2,7 @@
 
 <img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
 
-[![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
+[![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
@@ -202,7 +202,7 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | Bithumb | Yes  | NA       | NA  |
 | BitMEX | Yes | Yes | NA |
 | Bitstamp | Yes  | Yes       | No  |
-| Bittrex | Yes | No | NA |
+| Bittrex | Yes | Yes | NA |
 | BTCMarkets | Yes | No       | NA  |
 | BTSE | Yes | Yes | NA |
 | COINUT | Yes | Yes | NA |
@@ -217,7 +217,6 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | NA |
 | Lbank | Yes | No | NA |
-| LakeBTC | Yes | No | NA |
 | LocalBitcoins | Yes | NA | NA |
 | OKCoin International | Yes | Yes | No |
 | OKEX | Yes | Yes | No |
@@ -249,7 +248,6 @@ var Exchanges = []string{
 	"huobi",
 	"itbit",
 	"kraken",
-	"lakebtc",
 	"lbank",
 	"localbitcoins",
 	"okcoin international",
@@ -1095,7 +1093,7 @@ func (f *FTX) Setup(exch *config.ExchangeConfig) error {
 		Features:                         &f.Features.Supports.WebsocketCapabilities, // Defines the capabilities of the websocket outlined in supported features struct. This allows the websocket connection to be flushed appropriately if we have a pair/asset enable/disable change. This is outlined below.
 
 		// Orderbook buffer specific variables for processing orderbook updates via websocket feed. 
-		OrderbookBufferLimit:             exch.WebsocketOrderbookBufferLimit,
+		OrderbookBufferLimit:             exch.OrderbookConfig.WebsocketBufferLimit,
 		// Other orderbook buffer vars:
 		// BufferEnabled         bool 
 		// SortBuffer            bool 

@@ -23,10 +23,19 @@ func init() {
 func (s *Storage) SetDefaults() {
 	s.defaultBaseCurrency = USD
 	s.baseCurrency = s.defaultBaseCurrency
-	err := s.SetDefaultFiatCurrencies(USD, AUD, EUR, CNY)
+	var fiatCurrencies []Code
+	for item := range symbols {
+		if item == USDT.Item {
+			continue
+		}
+		fiatCurrencies = append(fiatCurrencies, Code{Item: item, UpperCase: true})
+	}
+
+	err := s.SetDefaultFiatCurrencies(fiatCurrencies...)
 	if err != nil {
 		log.Errorf(log.Global, "Currency Storage: Setting default fiat currencies error: %s", err)
 	}
+
 	err = s.SetDefaultCryptocurrencies(BTC, LTC, ETH, DOGE, DASH, XRP, XMR)
 	if err != nil {
 		log.Errorf(log.Global, "Currency Storage: Setting default cryptocurrencies error: %s", err)
@@ -135,6 +144,13 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *MainConfiguration
 		case "ExchangeRates":
 			// TODO ADD OVERRIDE
 			if settings.ForexProviders[i].Enabled {
+				settings.ForexProviders[i].Enabled = true
+				fxSettings = append(fxSettings,
+					base.Settings(settings.ForexProviders[i]))
+			}
+
+		case "ExchangeRateHost":
+			if overrides.FxExchangeRateHost || settings.ForexProviders[i].Enabled {
 				settings.ForexProviders[i].Enabled = true
 				fxSettings = append(fxSettings,
 					base.Settings(settings.ForexProviders[i]))
@@ -257,16 +273,20 @@ func (s *Storage) ForeignExchangeUpdater() {
 			return
 
 		case <-SeedForeignExchangeTick.C:
-			err := s.SeedForeignExchangeRates()
-			if err != nil {
-				log.Errorln(log.Global, err)
-			}
+			go func() {
+				err := s.SeedForeignExchangeRates()
+				if err != nil {
+					log.Errorln(log.Global, err)
+				}
+			}()
 
 		case <-SeedCurrencyAnalysisTick.C:
-			err := s.SeedCurrencyAnalysisData()
-			if err != nil {
-				log.Errorln(log.Global, err)
-			}
+			go func() {
+				err := s.SeedCurrencyAnalysisData()
+				if err != nil {
+					log.Errorln(log.Global, err)
+				}
+			}()
 		}
 	}
 }
@@ -743,6 +763,8 @@ func (s *Storage) IsVerbose() bool {
 
 // Shutdown shuts down the currency storage system and saves to currency.json
 func (s *Storage) Shutdown() error {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
 	close(s.shutdown)
 	s.wg.Wait()
 	return s.WriteCurrencyDataToFile(s.path, true)

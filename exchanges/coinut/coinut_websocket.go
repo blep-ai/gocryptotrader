@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -59,15 +60,6 @@ func (c *COINUT) WsConnect() error {
 	if err != nil {
 		c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		log.Error(log.WebsocketMgr, err)
-	}
-	subs, err := c.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-
-	err = c.Websocket.SubscribeToChannels(subs)
-	if err != nil {
-		return err
 	}
 
 	// define bi-directional communication
@@ -202,6 +194,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 			ID:          strconv.FormatInt(cancel.OrderID, 10),
 			Status:      order.Cancelled,
 			LastUpdated: time.Now(),
+			AssetType:   asset.Spot,
 		}
 	case "cancel_orders":
 		var cancels WsCancelOrdersResponse
@@ -215,6 +208,7 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 				ID:          strconv.FormatInt(cancels.Results[i].OrderID, 10),
 				Status:      order.Cancelled,
 				LastUpdated: time.Now(),
+				AssetType:   asset.Spot,
 			}
 		}
 	case "trade_history":
@@ -286,13 +280,52 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	case "inst_trade":
+		if !c.IsSaveTradeDataEnabled() {
+			return nil
+		}
 		var tradeSnap WsTradeSnapshot
 		err := json.Unmarshal(respRaw, &tradeSnap)
 		if err != nil {
 			return err
 		}
+		var trades []trade.Data
+		for i := range tradeSnap.Trades {
+			pairs, err := c.GetEnabledPairs(asset.Spot)
+			if err != nil {
+				return err
+			}
+			currencyPair := c.instrumentMap.LookupInstrument(tradeSnap.InstrumentID)
+			p, err := currency.NewPairFromFormattedPairs(currencyPair,
+				pairs,
+				format)
+			if err != nil {
+				return err
+			}
 
+			tSide, err := order.StringToOrderSide(tradeSnap.Trades[i].Side)
+			if err != nil {
+				c.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: c.Name,
+					Err:      err,
+				}
+			}
+
+			trades = append(trades, trade.Data{
+				Timestamp:    time.Unix(0, tradeSnap.Trades[i].Timestamp*1000),
+				CurrencyPair: p,
+				AssetType:    asset.Spot,
+				Exchange:     c.Name,
+				Price:        tradeSnap.Trades[i].Price,
+				Side:         tSide,
+				Amount:       tradeSnap.Trades[i].Quantity,
+				TID:          strconv.FormatInt(tradeSnap.Trades[i].TransID, 10),
+			})
+		}
+		return trade.AddTradesToBuffer(c.Name, trades...)
 	case "inst_trade_update":
+		if !c.IsSaveTradeDataEnabled() {
+			return nil
+		}
 		var tradeUpdate WsTradeUpdate
 		err := json.Unmarshal(respRaw, &tradeUpdate)
 		if err != nil {
@@ -319,14 +352,16 @@ func (c *COINUT) wsHandleData(respRaw []byte) error {
 			}
 		}
 
-		c.Websocket.DataHandler <- stream.TradeData{
-			Timestamp:    time.Unix(tradeUpdate.Timestamp, 0),
+		return trade.AddTradesToBuffer(c.Name, trade.Data{
+			Timestamp:    time.Unix(0, tradeUpdate.Timestamp*1000),
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
 			Exchange:     c.Name,
 			Price:        tradeUpdate.Price,
 			Side:         tSide,
-		}
+			Amount:       tradeUpdate.Quantity,
+			TID:          strconv.FormatInt(tradeUpdate.TransID, 10),
+		})
 	case "order_filled", "order_rejected", "order_accepted":
 		var orderContainer wsOrderContainer
 		err := json.Unmarshal(respRaw, &orderContainer)
@@ -495,6 +530,7 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 	var newOrderBook orderbook.Base
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
+	newOrderBook.VerifyOrderbook = c.CanVerifyOrderbook
 
 	pairs, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -514,8 +550,8 @@ func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
 		return err
 	}
 
-	newOrderBook.AssetType = asset.Spot
-	newOrderBook.ExchangeName = c.Name
+	newOrderBook.Asset = asset.Spot
+	newOrderBook.Exchange = c.Name
 
 	return c.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
@@ -555,7 +591,7 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *COINUT) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"inst_tick", "inst_order_book"}
+	var channels = []string{"inst_tick", "inst_order_book", "inst_trade"}
 	var subscriptions []stream.ChannelSubscription
 	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {

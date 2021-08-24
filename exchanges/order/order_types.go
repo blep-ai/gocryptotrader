@@ -11,11 +11,16 @@ import (
 // var error definitions
 var (
 	ErrSubmissionIsNil            = errors.New("order submission is nil")
+	ErrCancelOrderIsNil           = errors.New("cancel order is nil")
+	ErrGetOrdersRequestIsNil      = errors.New("get order request is nil")
+	ErrModifyOrderIsNil           = errors.New("modify order request is nil")
 	ErrPairIsEmpty                = errors.New("order pair is empty")
+	ErrAssetNotSet                = errors.New("order asset type is not set")
 	ErrSideIsInvalid              = errors.New("order side is invalid")
 	ErrTypeIsInvalid              = errors.New("order type is invalid")
-	ErrAmountIsInvalid            = errors.New("order amount is invalid")
+	ErrAmountIsInvalid            = errors.New("order amount is equal or less than zero")
 	ErrPriceMustBeSetIfLimitOrder = errors.New("order price must be set if limit order type is desired")
+	ErrOrderIDNotSet              = errors.New("order id or client order id is not set")
 )
 
 // Submit contains all properties of an order that may be required
@@ -27,9 +32,11 @@ type Submit struct {
 	HiddenOrder       bool
 	FillOrKill        bool
 	PostOnly          bool
-	Leverage          string
+	ReduceOnly        bool
+	Leverage          float64
 	Price             float64
 	Amount            float64
+	StopPrice         float64
 	LimitPriceUpper   float64
 	LimitPriceLower   float64
 	TriggerPrice      float64
@@ -44,6 +51,7 @@ type Submit struct {
 	ClientID          string
 	ClientOrderID     string
 	WalletAddress     string
+	Offset            string
 	Type              Type
 	Side              Side
 	Status            Status
@@ -59,6 +67,10 @@ type SubmitResponse struct {
 	IsOrderPlaced bool
 	FullyMatched  bool
 	OrderID       string
+	Rate          float64
+	Fee           float64
+	Cost          float64
+	Trades        []TradeHistory
 }
 
 // Modify contains all properties of an order
@@ -70,7 +82,7 @@ type Modify struct {
 	HiddenOrder       bool
 	FillOrKill        bool
 	PostOnly          bool
-	Leverage          string
+	Leverage          float64
 	Price             float64
 	Amount            float64
 	LimitPriceUpper   float64
@@ -110,7 +122,7 @@ type Detail struct {
 	HiddenOrder       bool
 	FillOrKill        bool
 	PostOnly          bool
-	Leverage          string
+	Leverage          float64
 	Price             float64
 	Amount            float64
 	LimitPriceUpper   float64
@@ -119,6 +131,7 @@ type Detail struct {
 	TargetAmount      float64
 	ExecutedAmount    float64
 	RemainingAmount   float64
+	Cost              float64
 	Fee               float64
 	Exchange          string
 	InternalOrderID   string
@@ -136,6 +149,23 @@ type Detail struct {
 	LastUpdated       time.Time
 	Pair              currency.Pair
 	Trades            []TradeHistory
+}
+
+// Filter contains all properties an order can be filtered for
+// empty strings indicate to ignore the property otherwise all need to match
+type Filter struct {
+	Exchange        string
+	InternalOrderID string
+	ID              string
+	ClientOrderID   string
+	AccountID       string
+	ClientID        string
+	WalletAddress   string
+	Type            Type
+	Side            Side
+	Status          Status
+	AssetType       asset.Item
+	Pair            currency.Pair
 }
 
 // Cancel contains all properties that may be required
@@ -157,12 +187,20 @@ type Cancel struct {
 	AssetType     asset.Item
 	Date          time.Time
 	Pair          currency.Pair
+	Symbol        string
 	Trades        []TradeHistory
 }
 
 // CancelAllResponse returns the status from attempting to
 // cancel all orders on an exchange
 type CancelAllResponse struct {
+	Status map[string]string
+	Count  int64
+}
+
+// CancelBatchResponse returns the status of orders
+// that have been requested for cancellation
+type CancelBatchResponse struct {
 	Status map[string]string
 }
 
@@ -178,17 +216,21 @@ type TradeHistory struct {
 	Side        Side
 	Timestamp   time.Time
 	IsMaker     bool
+	FeeAsset    string
+	Total       float64
 }
 
 // GetOrdersRequest used for GetOrderHistory and GetOpenOrders wrapper functions
 type GetOrdersRequest struct {
-	Type       Type
-	Side       Side
-	StartTicks time.Time
-	EndTicks   time.Time
+	Type      Type
+	Side      Side
+	StartTime time.Time
+	EndTime   time.Time
+	OrderID   string
 	// Currencies Empty array = all currencies. Some endpoints only support
 	// singular currency enquiries
-	Pairs []currency.Pair
+	Pairs     currency.Pairs
+	AssetType asset.Item
 }
 
 // Status defines order status types
@@ -211,6 +253,9 @@ const (
 	Hidden              Status = "HIDDEN"
 	UnknownStatus       Status = "UNKNOWN"
 	Open                Status = "OPEN"
+	AutoDeleverage      Status = "ADL"
+	Closed              Status = "CLOSED"
+	Pending             Status = "PENDING"
 )
 
 // Type enforces a standard for order types across the code base
@@ -225,10 +270,15 @@ const (
 	ImmediateOrCancel Type = "IMMEDIATE_OR_CANCEL"
 	Stop              Type = "STOP"
 	StopLimit         Type = "STOP LIMIT"
+	StopMarket        Type = "STOP MARKET"
+	TakeProfit        Type = "TAKE PROFIT"
+	TakeProfitMarket  Type = "TAKE PROFIT MARKET"
 	TrailingStop      Type = "TRAILING_STOP"
 	FillOrKill        Type = "FOK"
 	IOS               Type = "IOS"
 	UnknownType       Type = "UNKNOWN"
+	Liquidation       Type = "LIQUIDATION"
+	Trigger           Type = "TRIGGER"
 )
 
 // Side enforces a standard for order sides across the code base

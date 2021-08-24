@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 const (
@@ -37,12 +38,8 @@ func (c *CoinbasePro) WsConnect() error {
 		return err
 	}
 
-	subs, err := c.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
 	go c.wsReadData()
-	return c.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -130,11 +127,6 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		// the following cases contains data to synchronise authenticated orders
-		// subscribing to the "full" channel will consider ALL cbp orders as
-		// personal orders
-		// remove sending &order.Detail to the datahandler if you wish to subscribe to the
-		// "full" channel
 	case "received", "open", "done", "change", "activate":
 		var wsOrder wsOrderReceived
 		err := json.Unmarshal(respRaw, &wsOrder)
@@ -176,30 +168,32 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 			ts = convert.TimeFromUnixTimestampDecimal(wsOrder.Timestamp)
 		}
 
-		var p currency.Pair
-		var a asset.Item
-		p, a, err = c.GetRequestFormattedPairAndAssetType(wsOrder.ProductID)
-		if err != nil {
-			return err
-		}
-		c.Websocket.DataHandler <- &order.Detail{
-			HiddenOrder:     wsOrder.Private,
-			Price:           wsOrder.Price,
-			Amount:          wsOrder.Size,
-			TriggerPrice:    wsOrder.StopPrice,
-			ExecutedAmount:  wsOrder.Size - wsOrder.RemainingSize,
-			RemainingAmount: wsOrder.RemainingSize,
-			Fee:             wsOrder.TakerFeeRate,
-			Exchange:        c.Name,
-			ID:              wsOrder.OrderID,
-			AccountID:       wsOrder.ProfileID,
-			ClientID:        c.API.Credentials.ClientID,
-			Type:            oType,
-			Side:            oSide,
-			Status:          oStatus,
-			AssetType:       a,
-			Date:            ts,
-			Pair:            p,
+		if wsOrder.UserID != "" {
+			var p currency.Pair
+			var a asset.Item
+			p, a, err = c.GetRequestFormattedPairAndAssetType(wsOrder.ProductID)
+			if err != nil {
+				return err
+			}
+			c.Websocket.DataHandler <- &order.Detail{
+				HiddenOrder:     wsOrder.Private,
+				Price:           wsOrder.Price,
+				Amount:          wsOrder.Size,
+				TriggerPrice:    wsOrder.StopPrice,
+				ExecutedAmount:  wsOrder.Size - wsOrder.RemainingSize,
+				RemainingAmount: wsOrder.RemainingSize,
+				Fee:             wsOrder.TakerFeeRate,
+				Exchange:        c.Name,
+				ID:              wsOrder.OrderID,
+				AccountID:       wsOrder.ProfileID,
+				ClientID:        c.API.Credentials.ClientID,
+				Type:            oType,
+				Side:            oSide,
+				Status:          oStatus,
+				AssetType:       a,
+				Date:            ts,
+				Pair:            p,
+			}
 		}
 	case "match":
 		var wsOrder wsOrderReceived
@@ -214,19 +208,44 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 				Err:      err,
 			}
 		}
-		c.Websocket.DataHandler <- &order.Detail{
-			ID: wsOrder.OrderID,
-			Trades: []order.TradeHistory{
-				{
-					Price:     wsOrder.Price,
-					Amount:    wsOrder.Size,
-					Exchange:  c.Name,
-					TID:       strconv.FormatInt(wsOrder.TradeID, 10),
-					Side:      oSide,
-					Timestamp: wsOrder.Time,
-					IsMaker:   wsOrder.TakerUserID == "",
+		var p currency.Pair
+		var a asset.Item
+		p, a, err = c.GetRequestFormattedPairAndAssetType(wsOrder.ProductID)
+		if err != nil {
+			return err
+		}
+
+		if wsOrder.UserID != "" {
+			c.Websocket.DataHandler <- &order.Detail{
+				ID:        wsOrder.OrderID,
+				Pair:      p,
+				AssetType: a,
+				Trades: []order.TradeHistory{
+					{
+						Price:     wsOrder.Price,
+						Amount:    wsOrder.Size,
+						Exchange:  c.Name,
+						TID:       strconv.FormatInt(wsOrder.TradeID, 10),
+						Side:      oSide,
+						Timestamp: wsOrder.Time,
+						IsMaker:   wsOrder.TakerUserID == "",
+					},
 				},
-			},
+			}
+		} else {
+			if !c.IsSaveTradeDataEnabled() {
+				return nil
+			}
+			return trade.AddTradesToBuffer(c.Name, trade.Data{
+				Timestamp:    wsOrder.Time,
+				Exchange:     c.Name,
+				CurrencyPair: p,
+				AssetType:    a,
+				Price:        wsOrder.Price,
+				Amount:       wsOrder.Size,
+				Side:         oSide,
+				TID:          strconv.FormatInt(wsOrder.TradeID, 10),
+			})
 		}
 	default:
 		c.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: c.Name + stream.UnhandledMessage + string(respRaw)}
@@ -290,9 +309,10 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookSnapshot) erro
 		return err
 	}
 
-	base.AssetType = asset.Spot
+	base.Asset = asset.Spot
 	base.Pair = pair
-	base.ExchangeName = c.Name
+	base.Exchange = c.Name
+	base.VerifyOrderbook = c.CanVerifyOrderbook
 
 	return c.Websocket.Orderbook.LoadSnapshot(&base)
 }
@@ -319,7 +339,7 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 	}
 
 	if len(asks) == 0 && len(bids) == 0 {
-		return errors.New("coinbasepro_websocket.go error - no data in websocket update")
+		return errors.New("no data in websocket update")
 	}
 
 	p, err := currency.NewPairFromString(update.ProductID)
@@ -342,7 +362,7 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketL2Update) error {
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"heartbeat", "level2", "ticker", "user"}
+	var channels = []string{"heartbeat", "level2", "ticker", "user", "matches"}
 	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err

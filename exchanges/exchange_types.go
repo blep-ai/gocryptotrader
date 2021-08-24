@@ -1,11 +1,14 @@
 package exchange
 
 import (
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -40,7 +43,7 @@ const (
 	InternationalBankDepositFee
 	InternationalBankWithdrawalFee
 	CryptocurrencyTradeFee
-	CyptocurrencyDepositFee
+	CryptocurrencyDepositFee
 	CryptocurrencyWithdrawalFee
 	OfflineTradeFee
 	// Definitions for each type of withdrawal method for a given exchange
@@ -108,19 +111,6 @@ type FeeBuilder struct {
 	Amount        float64
 }
 
-// TradeHistory holds exchange history data
-type TradeHistory struct {
-	Timestamp   time.Time
-	TID         string
-	Price       float64
-	Amount      float64
-	Exchange    string
-	Type        string
-	Side        string
-	Fee         float64
-	Description string
-}
-
 // FundHistory holds exchange funding history data
 type FundHistory struct {
 	ExchangeName      string
@@ -139,6 +129,21 @@ type FundHistory struct {
 	BankFrom          string
 }
 
+// WithdrawalHistory holds exchange Withdrawal history data
+type WithdrawalHistory struct {
+	Status          string
+	TransferID      string
+	Description     string
+	Timestamp       time.Time
+	Currency        string
+	Amount          float64
+	Fee             float64
+	TransferType    string
+	CryptoToAddress string
+	CryptoTxID      string
+	BankTo          string
+}
+
 // Features stores the supported and enabled features
 // for the exchange
 type Features struct {
@@ -150,6 +155,7 @@ type Features struct {
 type FeaturesEnabled struct {
 	AutoPairUpdates bool
 	Kline           kline.ExchangeCapabilitiesEnabled
+	SaveTradeData   bool
 }
 
 // FeaturesSupported stores the exchanges supported features
@@ -162,25 +168,27 @@ type FeaturesSupported struct {
 	Kline                 kline.ExchangeCapabilitiesSupported
 }
 
+// Endpoints stores running url endpoints for exchanges
+type Endpoints struct {
+	Exchange string
+	defaults map[string]string
+	sync.RWMutex
+}
+
 // API stores the exchange API settings
 type API struct {
 	AuthenticatedSupport          bool
 	AuthenticatedWebsocketSupport bool
 	PEMKeySupport                 bool
 
-	Endpoints struct {
-		URL                 string
-		URLDefault          string
-		URLSecondary        string
-		URLSecondaryDefault string
-		WebsocketURL        string
-	}
+	Endpoints *Endpoints
 
 	Credentials struct {
-		Key      string
-		Secret   string
-		ClientID string
-		PEMKey   string
+		Key        string
+		Secret     string
+		ClientID   string
+		PEMKey     string
+		Subaccount string
 	}
 
 	CredentialsValidator struct {
@@ -214,5 +222,55 @@ type Base struct {
 	WebsocketOrderbookBufferLimit int64
 	Websocket                     *stream.Websocket
 	*request.Requester
-	Config *config.ExchangeConfig
+	Config        *config.ExchangeConfig
+	settingsMutex sync.RWMutex
+	// CanVerifyOrderbook determines if the orderbook verification can be bypassed,
+	// increasing potential update speed but decreasing confidence in orderbook
+	// integrity.
+	CanVerifyOrderbook bool
+	order.ExecutionLimits
+
+	AssetWebsocketSupport
+}
+
+// url lookup consts
+const (
+	RestSpot URL = iota
+	RestSpotSupplementary
+	RestUSDTMargined
+	RestCoinMargined
+	RestFutures
+	RestSwap
+	RestSandbox
+	WebsocketSpot
+	WebsocketSpotSupplementary
+	ChainAnalysis
+	EdgeCase1
+	EdgeCase2
+	EdgeCase3
+)
+
+var keyURLs = []URL{RestSpot,
+	RestSpotSupplementary,
+	RestUSDTMargined,
+	RestCoinMargined,
+	RestFutures,
+	RestSwap,
+	RestSandbox,
+	WebsocketSpot,
+	WebsocketSpotSupplementary,
+	ChainAnalysis,
+	EdgeCase1,
+	EdgeCase2,
+	EdgeCase3}
+
+// URL stores uint conversions
+type URL uint16
+
+// AssetWebsocketSupport defines the availability of websocket functionality to
+// the specific asset type. TODO: Deprecate as this is a temp item to address
+// certain limitations quickly.
+type AssetWebsocketSupport struct {
+	unsupported map[asset.Item]bool
+	m           sync.RWMutex
 }

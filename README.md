@@ -1,6 +1,6 @@
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
-[![Build Status](https://travis-ci.com/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.com/thrasher-corp/gocryptotrader)
+[![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
@@ -25,15 +25,15 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Bithumb | Yes  | NA       | NA  |
 | BitMEX | Yes | Yes | NA |
 | Bitstamp | Yes  | Yes       | No  |
-| Bittrex | Yes | No | NA |
-| BTCMarkets | Yes | No       | NA  |
+| Bittrex | Yes | Yes | NA |
+| BTCMarkets | Yes | Yes       | NA  |
 | BTSE | Yes | Yes | NA |
+| CoinbasePro | Yes | Yes | No|
+| Coinbene | Yes | Yes | No |
 | COINUT | Yes | Yes | NA |
 | Deribit | Yes | Yes | Yes |
 | Exmo | Yes | NA | NA |
 | FTX | Yes | Yes | No |
-| CoinbasePro | Yes | Yes | No|
-| Coinbene | Yes | No | No |
 | GateIO | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
@@ -41,7 +41,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | NA |
 | Lbank | Yes | No | NA |
-| LakeBTC | Yes | No | NA |
 | LocalBitcoins | Yes | NA | NA |
 | OKCoin International | Yes | Yes | No |
 | OKEX | Yes | Yes | No |
@@ -77,6 +76,8 @@ However, we welcome pull requests for any exchange which does not match this cri
 + Basic event trigger system.
 + OHLCV/Candle retrieval support. See [OHLCV](/docs/OHLCV.md).
 + Scripting support. See [gctscript](/gctscript/README.md).
++ Recent and historic trade processing. See [trades](/exchanges/trade/README.md).
++ Backtesting application. An event-driven backtesting tool to test and iterate trading strategies using historical or custom data. See [backtester](/backtester/README.md).
 + WebGUI (discontinued).
 
 ## Planned Features
@@ -142,35 +143,37 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 641 |
-| [shazbert](https://github.com/shazbert) | 191 |
-| [gloriousCode](https://github.com/gloriousCode) | 169 |
-| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 51 |
-| [xtda](https://github.com/xtda) | 45 |
+| [thrasher-](https://github.com/thrasher-) | 656 |
+| [shazbert](https://github.com/shazbert) | 209 |
+| [gloriousCode](https://github.com/gloriousCode) | 184 |
+| [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
+| [xtda](https://github.com/xtda) | 47 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 18 |
+| [Rots](https://github.com/Rots) | 15 |
+| [vazha](https://github.com/vazha) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
+| [MadCozBadd](https://github.com/MadCozBadd) | 13 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
-| [MadCozBadd](https://github.com/MadCozBadd) | 9 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
-| [vazha](https://github.com/vazha) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
+| [azhang](https://github.com/azhang) | 2 |
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
+| [MarkDzulko](https://github.com/MarkDzulko) | 2 |
+| [yangrq1018](https://github.com/yangrq1018) | 2 |
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
 | [if1live](https://github.com/if1live) | 2 |
 | [lozdog245](https://github.com/lozdog245) | 2 |
 | [soxipy](https://github.com/soxipy) | 2 |
+| [mshogin](https://github.com/mshogin) | 2 |
 | [herenow](https://github.com/herenow) | 2 |
-| [azhang](https://github.com/azhang) | 1 |
-| [blombard](https://github.com/blombard) | 1 |
-| [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
-| [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
-| [Daanikus](https://github.com/Daanikus) | 1 |
+| [tk42](https://github.com/tk42) | 2 |
 | [daniel-cohen](https://github.com/daniel-cohen) | 1 |
 | [DirectX](https://github.com/DirectX) | 1 |
 | [frankzougc](https://github.com/frankzougc) | 1 |
@@ -184,3 +187,7 @@ Binaries will be published once the codebase reaches a stable condition.
 | [Jimexist](https://github.com/Jimexist) | 1 |
 | [lookfirst](https://github.com/lookfirst) | 1 |
 | [merkeld](https://github.com/merkeld) | 1 |
+| [CodeLingoTeam](https://github.com/CodeLingoTeam) | 1 |
+| [Daanikus](https://github.com/Daanikus) | 1 |
+| [CodeLingoBot](https://github.com/CodeLingoBot) | 1 |
+| [blombard](https://github.com/blombard) | 1 |

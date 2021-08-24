@@ -7,17 +7,23 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
 
 // Validate checks the supplied data and returns whether or not it's valid
-func (s *Submit) Validate() error {
+func (s *Submit) Validate(opt ...validate.Checker) error {
 	if s == nil {
 		return ErrSubmissionIsNil
 	}
 
 	if s.Pair.IsEmpty() {
 		return ErrPairIsEmpty
+	}
+
+	if s.AssetType == "" {
+		return ErrAssetNotSet
 	}
 
 	if s.Side != Buy &&
@@ -32,11 +38,18 @@ func (s *Submit) Validate() error {
 	}
 
 	if s.Amount <= 0 {
-		return ErrAmountIsInvalid
+		return fmt.Errorf("submit validation error %w, suppled: %.8f", ErrAmountIsInvalid, s.Amount)
 	}
 
 	if s.Type == Limit && s.Price <= 0 {
 		return ErrPriceMustBeSetIfLimitOrder
+	}
+
+	for _, o := range opt {
+		err := o.Check()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -102,7 +115,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		d.Pair = m.Pair
 		updated = true
 	}
-	if m.Leverage != "" && m.Leverage != d.Leverage {
+	if m.Leverage != 0 && m.Leverage != d.Leverage {
 		d.Leverage = m.Leverage
 		updated = true
 	}
@@ -142,7 +155,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 					d.Trades[y].Fee = m.Trades[x].Fee
 					updated = true
 				}
-				if m.Trades[y].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
+				if m.Trades[x].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
 					d.Trades[y].Price = m.Trades[x].Price
 					updated = true
 				}
@@ -158,7 +171,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 					d.Trades[y].Description = m.Trades[x].Description
 					updated = true
 				}
-				if m.Trades[y].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
+				if m.Trades[x].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
 					d.Trades[y].Amount = m.Trades[x].Amount
 					updated = true
 				}
@@ -188,6 +201,12 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) {
 		} else {
 			d.LastUpdated = m.LastUpdated
 		}
+	}
+	if d.Exchange == "" {
+		d.Exchange = m.Exchange
+	}
+	if d.ID == "" {
+		d.ID = m.ID
 	}
 }
 
@@ -251,7 +270,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 		d.Pair = m.Pair
 		updated = true
 	}
-	if m.Leverage != "" && m.Leverage != d.Leverage {
+	if m.Leverage != 0 && m.Leverage != d.Leverage {
 		d.Leverage = m.Leverage
 		updated = true
 	}
@@ -291,7 +310,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 					d.Trades[y].Fee = m.Trades[x].Fee
 					updated = true
 				}
-				if m.Trades[y].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
+				if m.Trades[x].Price != 0 && d.Trades[y].Price != m.Trades[x].Price {
 					d.Trades[y].Price = m.Trades[x].Price
 					updated = true
 				}
@@ -307,7 +326,7 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 					d.Trades[y].Description = m.Trades[x].Description
 					updated = true
 				}
-				if m.Trades[y].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
+				if m.Trades[x].Amount != 0 && d.Trades[y].Amount != m.Trades[x].Amount {
 					d.Trades[y].Amount = m.Trades[x].Amount
 					updated = true
 				}
@@ -338,6 +357,58 @@ func (d *Detail) UpdateOrderFromModify(m *Modify) {
 			d.LastUpdated = m.LastUpdated
 		}
 	}
+}
+
+// MatchFilter will return true if a detail matches the filter criteria
+// empty elements are ignored
+func (d *Detail) MatchFilter(f *Filter) bool {
+	if f.Exchange != "" && !strings.EqualFold(d.Exchange, f.Exchange) {
+		return false
+	}
+	if f.AssetType != "" && d.AssetType != f.AssetType {
+		return false
+	}
+	if !f.Pair.IsEmpty() && !d.Pair.Equal(f.Pair) {
+		return false
+	}
+	if f.ID != "" && d.ID != f.ID {
+		return false
+	}
+	if f.Type != "" && f.Type != AnyType && d.Type != f.Type {
+		return false
+	}
+	if f.Side != "" && f.Side != AnySide && d.Side != f.Side {
+		return false
+	}
+	if f.Status != "" && f.Status != AnyStatus && d.Status != f.Status {
+		return false
+	}
+	if f.ClientOrderID != "" && d.ClientOrderID != f.ClientOrderID {
+		return false
+	}
+	if f.ClientID != "" && d.ClientID != f.ClientID {
+		return false
+	}
+	if f.InternalOrderID != "" && d.InternalOrderID != f.InternalOrderID {
+		return false
+	}
+	if f.AccountID != "" && d.AccountID != f.AccountID {
+		return false
+	}
+	if f.WalletAddress != "" && d.WalletAddress != f.WalletAddress {
+		return false
+	}
+	return true
+}
+
+// Copy will return a copy of Detail
+func (d *Detail) Copy() Detail {
+	c := *d
+	if len(d.Trades) > 0 {
+		c.Trades = make([]TradeHistory, len(d.Trades))
+		copy(c.Trades, d.Trades)
+	}
+	return c
 }
 
 // String implements the stringer interface
@@ -409,20 +480,20 @@ func FilterOrdersByType(orders *[]Detail, orderType Type) {
 	*orders = filteredOrders
 }
 
-// FilterOrdersByTickRange removes any OrderDetails outside of the tick range
-func FilterOrdersByTickRange(orders *[]Detail, startTicks, endTicks time.Time) {
-	if startTicks.IsZero() ||
-		endTicks.IsZero() ||
-		startTicks.Unix() == 0 ||
-		endTicks.Unix() == 0 ||
-		endTicks.Before(startTicks) {
+// FilterOrdersByTimeRange removes any OrderDetails outside of the time range
+func FilterOrdersByTimeRange(orders *[]Detail, startTime, endTime time.Time) {
+	if startTime.IsZero() ||
+		endTime.IsZero() ||
+		startTime.Unix() == 0 ||
+		endTime.Unix() == 0 ||
+		endTime.Before(startTime) {
 		return
 	}
 
 	var filteredOrders []Detail
 	for i := range *orders {
-		if (*orders)[i].Date.Unix() >= startTicks.Unix() &&
-			(*orders)[i].Date.Unix() <= endTicks.Unix() {
+		if ((*orders)[i].Date.Unix() >= startTime.Unix() && (*orders)[i].Date.Unix() <= endTime.Unix()) ||
+			(*orders)[i].Date.IsZero() {
 			filteredOrders = append(filteredOrders, (*orders)[i])
 		}
 	}
@@ -437,18 +508,17 @@ func FilterOrdersByCurrencies(orders *[]Detail, currencies []currency.Pair) {
 	if len(currencies) == 0 {
 		return
 	}
+	if len(currencies) == 1 && currencies[0].IsEmpty() {
+		return
+	}
 
 	var filteredOrders []Detail
 	for i := range *orders {
-		matchFound := false
 		for _, c := range currencies {
-			if !matchFound && (*orders)[i].Pair.EqualIncludeReciprocal(c) {
-				matchFound = true
+			if (*orders)[i].Pair.EqualIncludeReciprocal(c) {
+				filteredOrders = append(filteredOrders, (*orders)[i])
+				break
 			}
-		}
-
-		if matchFound {
-			filteredOrders = append(filteredOrders, (*orders)[i])
 		}
 	}
 
@@ -615,6 +685,8 @@ func StringToOrderType(oType string) (Type, error) {
 		return PostOnly, nil
 	case strings.EqualFold(oType, AnyType.String()):
 		return AnyType, nil
+	case strings.EqualFold(oType, Trigger.String()):
+		return Trigger, nil
 	default:
 		return UnknownType, errors.New(oType + " not recognised as order type")
 	}
@@ -644,7 +716,11 @@ func StringToOrderStatus(status string) (Status, error) {
 		return PartiallyCancelled, nil
 	case strings.EqualFold(status, Open.String()):
 		return Open, nil
+	case strings.EqualFold(status, Closed.String()):
+		return Closed, nil
 	case strings.EqualFold(status, Cancelled.String()):
+		return Cancelled, nil
+	case strings.EqualFold(status, "CANCELED"): // Kraken case
 		return Cancelled, nil
 	case strings.EqualFold(status, PendingCancel.String()),
 		strings.EqualFold(status, "pending cancel"),
@@ -675,4 +751,103 @@ func (o *ClassificationError) Error() string {
 	return fmt.Sprintf("%s - classification error: %v",
 		o.Exchange,
 		o.Err)
+}
+
+// StandardCancel defines an option in the validator to make sure an ID is set
+// for a standard cancel
+func (c *Cancel) StandardCancel() validate.Checker {
+	return validate.Check(func() error {
+		if c.ID == "" {
+			return errors.New("ID not set")
+		}
+		return nil
+	})
+}
+
+// PairAssetRequired is a validation check for when a cancel request
+// requires an asset type and currency pair to be present
+func (c *Cancel) PairAssetRequired() validate.Checker {
+	return validate.Check(func() error {
+		if c.Pair.IsEmpty() {
+			return ErrPairIsEmpty
+		}
+
+		if c.AssetType == "" {
+			return ErrAssetNotSet
+		}
+		return nil
+	})
+}
+
+// Validate checks internal struct requirements
+func (c *Cancel) Validate(opt ...validate.Checker) error {
+	if c == nil {
+		return ErrCancelOrderIsNil
+	}
+
+	var errs common.Errors
+	for _, o := range opt {
+		err := o.Check()
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if errs != nil {
+		return errs
+	}
+	return nil
+}
+
+// Validate checks internal struct requirements
+func (g *GetOrdersRequest) Validate(opt ...validate.Checker) error {
+	if g == nil {
+		return ErrGetOrdersRequestIsNil
+	}
+	if !g.AssetType.IsValid() {
+		return fmt.Errorf("assetType %v not supported", g.AssetType)
+	}
+	var errs common.Errors
+	for _, o := range opt {
+		err := o.Check()
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if errs != nil {
+		return errs
+	}
+	return nil
+}
+
+// Validate checks internal struct requirements
+func (m *Modify) Validate(opt ...validate.Checker) error {
+	if m == nil {
+		return ErrModifyOrderIsNil
+	}
+
+	if m.Pair.IsEmpty() {
+		return ErrPairIsEmpty
+	}
+
+	if m.AssetType.String() == "" {
+		return ErrAssetNotSet
+	}
+
+	var errs common.Errors
+	for _, o := range opt {
+		err := o.Check()
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if errs != nil {
+		return errs
+	}
+	if m.ClientOrderID == "" && m.ID == "" {
+		return ErrOrderIDNotSet
+	}
+	return nil
 }

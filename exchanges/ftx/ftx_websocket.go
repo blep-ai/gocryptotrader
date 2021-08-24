@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -68,11 +69,7 @@ func (f *FTX) WsConnect() error {
 		}
 	}
 
-	subs, err := f.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return f.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // WsAuth sends an authentication message to receive auth data
@@ -177,7 +174,7 @@ func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, erro
 		Channel: wsMarkets,
 	})
 	var channels = []string{wsTicker, wsTrades, wsOrderbook}
-	assets := f.GetAssetTypes()
+	assets := f.GetAssetTypes(true)
 	for a := range assets {
 		pairs, err := f.GetEnabledPairs(assets[a])
 		if err != nil {
@@ -292,11 +289,15 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 				return err
 			}
 		case wsTrades:
+			if !f.IsSaveTradeDataEnabled() {
+				return nil
+			}
 			var resultData WsTradeDataStore
 			err = json.Unmarshal(respRaw, &resultData)
 			if err != nil {
 				return err
 			}
+			var trades []trade.Data
 			for z := range resultData.TradeData {
 				var oSide order.Side
 				oSide, err = order.StringToOrderSide(resultData.TradeData[z].Side)
@@ -306,7 +307,7 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 						Err:      err,
 					}
 				}
-				f.Websocket.DataHandler <- stream.TradeData{
+				trades = append(trades, trade.Data{
 					Timestamp:    resultData.TradeData[z].Time,
 					CurrencyPair: p,
 					AssetType:    a,
@@ -314,8 +315,10 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 					Price:        resultData.TradeData[z].Price,
 					Amount:       resultData.TradeData[z].Size,
 					Side:         oSide,
-				}
+					TID:          strconv.FormatInt(resultData.TradeData[z].ID, 10),
+				})
 			}
+			return trade.AddTradesToBuffer(f.Name, trades...)
 		case wsOrders:
 			var resultData WsOrderDataStore
 			err = json.Unmarshal(respRaw, &resultData)
@@ -351,11 +354,12 @@ func (f *FTX) wsHandleData(respRaw []byte) error {
 			resp.Pair = pair
 			resp.RemainingAmount = resultData.OrderData.Size - resultData.OrderData.FilledSize
 			var orderVars OrderVars
-			orderVars, err = f.compatibleOrderVars(resultData.OrderData.Side,
+			orderVars, err = f.compatibleOrderVars(
+				resultData.OrderData.Side,
 				resultData.OrderData.Status,
 				resultData.OrderData.OrderType,
-				resultData.OrderData.FilledSize,
 				resultData.OrderData.Size,
+				resultData.OrderData.FilledSize,
 				resultData.OrderData.AvgFillPrice)
 			if err != nil {
 				return err
@@ -449,7 +453,10 @@ func (f *FTX) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a asset.
 		return err
 	}
 
-	updatedOb := f.Websocket.Orderbook.GetOrderbook(p, a)
+	updatedOb, err := f.Websocket.Orderbook.GetOrderbook(p, a)
+	if err != nil {
+		return err
+	}
 	checksum := f.CalcUpdateOBChecksum(updatedOb)
 
 	if checksum != data.Checksum {
@@ -503,12 +510,13 @@ func (f *FTX) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset
 	}
 
 	newOrderBook := orderbook.Base{
-		Asks:         asks,
-		Bids:         bids,
-		AssetType:    a,
-		LastUpdated:  timestampFromFloat64(data.Time),
-		Pair:         p,
-		ExchangeName: f.Name,
+		Asks:            asks,
+		Bids:            bids,
+		Asset:           a,
+		LastUpdated:     timestampFromFloat64(data.Time),
+		Pair:            p,
+		Exchange:        f.Name,
+		VerifyOrderbook: f.CanVerifyOrderbook,
 	}
 	return f.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }

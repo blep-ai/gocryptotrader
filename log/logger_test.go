@@ -2,6 +2,7 @@ package log
 
 import (
 	"bytes"
+	"errors"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -40,8 +41,9 @@ func setupTestLoggers() {
 				Output: "stdout",
 			}},
 	}
-
+	RWM.Lock()
 	GlobalLogConfig = &logTest
+	RWM.Unlock()
 	SetupGlobalLogger()
 	SetupSubLoggers(logTest.SubLoggers)
 }
@@ -50,8 +52,10 @@ func SetupDisabled() {
 	logTest := Config{
 		Enabled: convert.BoolPtr(false),
 	}
-
+	RWM.Lock()
 	GlobalLogConfig = &logTest
+	RWM.Unlock()
+
 	SetupGlobalLogger()
 	SetupSubLoggers(logTest.SubLoggers)
 }
@@ -221,7 +225,7 @@ func TestNewLogEvent(t *testing.T) {
 func TestInfo(t *testing.T) {
 	w := &bytes.Buffer{}
 
-	tempSL := subLogger{
+	tempSL := SubLogger{
 		"TESTYMCTESTALOT",
 		splitLevel("INFO|WARN|DEBUG|ERROR"),
 		w,
@@ -257,5 +261,24 @@ func TestSubLoggerName(t *testing.T) {
 	logger.newLogEvent("out", "header", "SUBLOGGER", w)
 	if strings.Contains(w.String(), "SUBLOGGER") {
 		t.Error("Unexpected SUBLOGGER in output")
+	}
+}
+
+func TestNewSubLogger(t *testing.T) {
+	_, err := NewSubLogger("")
+	if !errors.Is(err, errEmptyLoggerName) {
+		t.Fatalf("received: %v but expected: %v", err, errEmptyLoggerName)
+	}
+
+	sl, err := NewSubLogger("TESTERINOS")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
+	}
+
+	Debug(sl, "testerinos")
+
+	_, err = NewSubLogger("TESTERINOS")
+	if !errors.Is(err, errSubLoggerAlreadyregistered) {
+		t.Fatalf("received: %v but expected: %v", err, errSubLoggerAlreadyregistered)
 	}
 }

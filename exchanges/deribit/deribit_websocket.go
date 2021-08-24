@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	deribitWSURL      = "wss://www.deribit.com/ws/api/v2"
+	deribitWSURL = "wss://www.deribit.com/ws/api/v2"
 
-	pingDelay         = 1 * time.Minute // TODO: check this
+	pingDelay = 1 * time.Minute // TODO: check this
 
 	//"announcements"
 	//"book.{instrument_name}.{group}.{depth}.{interval}"
@@ -140,17 +140,17 @@ func (de *Deribit) WsAuth() error {
 	//intNonce := time.Now().UnixNano() / 1000000
 	//strNonce := strconv.FormatInt(intNonce, 10)
 	//hmac := crypto.GetHMAC(
-		//crypto.HashSHA256,
-		//[]byte(strNonce+"websocket_login"),
-		//[]byte(de.API.Credentials.Secret),
+	//crypto.HashSHA256,
+	//[]byte(strNonce+"websocket_login"),
+	//[]byte(de.API.Credentials.Secret),
 	//)
 	//sign := crypto.HexEncodeToString(hmac)
 	//req := Authenticate{Operation: "login",
-		//Args: AuthenticationData{
-			//Key:  de.API.Credentials.Key,
-			//Sign: sign,
-			//Time: intNonce,
-		//},
+	//Args: AuthenticationData{
+	//Key:  de.API.Credentials.Key,
+	//Sign: sign,
+	//Time: intNonce,
+	//},
 	//}
 	//return de.Websocket.Conn.SendJSONMessage(req)
 	return nil
@@ -234,10 +234,10 @@ channels:
 func (de *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	//subscriptions = append(subscriptions, stream.ChannelSubscription{
-		//Channel: wsMarkets,
+	//Channel: wsMarkets,
 	//})
-	var channels = []string{"ticker"}//, wsTrades, wsOrderbook}
-	assets := de.GetAssetTypes()
+	var channels = []string{"ticker"} //, wsTrades, wsOrderbook}
+	assets := de.GetAssetTypes(true)
 	for a := range assets {
 		pairs, err := de.GetEnabledPairs(assets[a])
 		if err != nil {
@@ -258,12 +258,12 @@ func (de *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 		}
 	}
 	//if de.GetAuthenticatedAPISupport(exchange.WebsocketAuthentication) {
-		//var authchan = []string{wsOrders, wsFills}
-		//for x := range authchan {
-			//subscriptions = append(subscriptions, stream.ChannelSubscription{
-				//Channel: authchan[x],
-			//})
-		//}
+	//var authchan = []string{wsOrders, wsFills}
+	//for x := range authchan {
+	//subscriptions = append(subscriptions, stream.ChannelSubscription{
+	//Channel: authchan[x],
+	//})
+	//}
 	//}
 	return subscriptions, nil
 }
@@ -304,8 +304,6 @@ func (de *Deribit) wsHandleData(respRaw []byte) error {
 		return err
 	}
 
-
-
 	switch ch := result.Params.Channel; {
 	case strings.HasPrefix(ch, "ticker"):
 		var data Ticker
@@ -325,348 +323,348 @@ func (de *Deribit) wsHandleData(respRaw []byte) error {
 
 		de.Websocket.DataHandler <- &ticker.Ticker{
 			Price: ticker.Price{
-				Last: data.LastPrice,
-				High: data.Stats.High,
-				Low: data.Stats.Low,
-				Bid: data.BestBidPrice,
-				Ask: data.BestAskPrice,
+				Last:   data.LastPrice,
+				High:   data.Stats.High,
+				Low:    data.Stats.Low,
+				Bid:    data.BestBidPrice,
+				Ask:    data.BestAskPrice,
 				Volume: data.Stats.Volume,
 				//QuoteVolume
-				PriceATH  : data.MaxPrice,
+				PriceATH: data.MaxPrice,
 				//Open
 				//Close
-				Pair: p,
+				Pair:         p,
 				ExchangeName: de.Name,
-				AssetType: a,
-				LastUpdated: time.Unix(0, data.Timestamp * int64(time.Millisecond)),
+				AssetType:    a,
+				LastUpdated:  time.Unix(0, data.Timestamp*int64(time.Millisecond)),
 				OpenInterest: data.OpenInterest,
 			},
 			DerivStatus: ticker.DerivStatus{
-				DerivPrice             : data.LastPrice,
-				SpotPrice               : data.UnderlyingPrice,
-				CurrentFunding         : data.InterestRate,
-				MarkPrice               :data.MarkPrice,
-				OpenInterest           : data.OpenInterest,
+				DerivPrice:     data.LastPrice,
+				SpotPrice:      data.UnderlyingPrice,
+				CurrentFunding: data.InterestRate,
+				MarkPrice:      data.MarkPrice,
+				OpenInterest:   data.OpenInterest,
 			},
 		}
 	}
 	//case wsUpdate:
-		//var p currency.Pair
-		//var a asset.Item
-		//market, ok := result["market"]
-		//if ok {
-			//p, err = currency.NewPairFromString(market.(string))
-			//if err != nil {
-				//return err
-			//}
-			//a, err = de.GetPairAssetType(p)
-			//if err != nil {
-				//return err
-			//}
-		//}
-		//switch result["channel"] {
-		//case wsTicker:
-			//var resultData WsTickerDataStore
-			//err = json.Unmarshal(respRaw, &resultData)
-			//if err != nil {
-				//return err
-			//}
-			//de.Websocket.DataHandler <- &ticker.Price{
-				//ExchangeName: de.Name,
-				//Bid:          resultData.Ticker.Bid,
-				//Ask:          resultData.Ticker.Ask,
-				//Last:         resultData.Ticker.Last,
-				//LastUpdated:  timestampFromFloat64(resultData.Ticker.Time),
-				//Pair:         p,
-				//AssetType:    a,
-			//}
-		//case wsOrderbook:
-			//var resultData WsOrderbookDataStore
-			//err = json.Unmarshal(respRaw, &resultData)
-			//if err != nil {
-				//return err
-			//}
-			//if len(resultData.OBData.Asks) == 0 && len(resultData.OBData.Bids) == 0 {
-				//return nil
-			//}
-			//err = de.WsProcessUpdateOB(&resultData.OBData, p, a)
-			//if err != nil {
-				//err2 := de.wsResubToOB(p)
-				//if err2 != nil {
-					//de.Websocket.DataHandler <- err2
-				//}
-				//return err
-			//}
-		//case wsTrades:
-			//var resultData WsTradeDataStore
-			//err = json.Unmarshal(respRaw, &resultData)
-			//if err != nil {
-				//return err
-			//}
-			//for z := range resultData.TradeData {
-				//var oSide order.Side
-				//oSide, err = order.StringToOrderSide(resultData.TradeData[z].Side)
-				//if err != nil {
-					//de.Websocket.DataHandler <- order.ClassificationError{
-						//Exchange: de.Name,
-						//Err:      err,
-					//}
-				//}
-				//de.Websocket.DataHandler <- stream.TradeData{
-					//Timestamp:    resultData.TradeData[z].Time,
-					//CurrencyPair: p,
-					//AssetType:    a,
-					//Exchange:     de.Name,
-					//Price:        resultData.TradeData[z].Price,
-					//Amount:       resultData.TradeData[z].Size,
-					//Side:         oSide,
-				//}
-			//}
-		//case wsOrders:
-			//var resultData WsOrderDataStore
-			//err = json.Unmarshal(respRaw, &resultData)
-			//if err != nil {
-				//return err
-			//}
-			//var pair currency.Pair
-			//pair, err = currency.NewPairFromString(resultData.OrderData.Market)
-			//if err != nil {
-				//return err
-			//}
-			//var assetType asset.Item
-			//assetType, err = de.GetPairAssetType(pair)
-			//if err != nil {
-				//return err
-			//}
-			//var oSide order.Side
-			//oSide, err = order.StringToOrderSide(resultData.OrderData.Side)
-			//if err != nil {
-				//de.Websocket.DataHandler <- order.ClassificationError{
-					//Exchange: de.Name,
-					//Err:      err,
-				//}
-			//}
-			//var resp order.Detail
-			//resp.Side = oSide
-			//resp.Amount = resultData.OrderData.Size
-			//resp.AssetType = assetType
-			//resp.ClientOrderID = resultData.OrderData.ClientID
-			//resp.Exchange = de.Name
-			//resp.ExecutedAmount = resultData.OrderData.FilledSize
-			//resp.ID = strconv.FormatInt(resultData.OrderData.ID, 10)
-			//resp.Pair = pair
-			//resp.RemainingAmount = resultData.OrderData.Size - resultData.OrderData.FilledSize
-			//var orderVars OrderVars
-			//orderVars, err = de.compatibleOrderVars(resultData.OrderData.Side,
-				//resultData.OrderData.Status,
-				//resultData.OrderData.OrderType,
-				//resultData.OrderData.FilledSize,
-				//resultData.OrderData.Size,
-				//resultData.OrderData.AvgFillPrice)
-			//if err != nil {
-				//return err
-			//}
-			//resp.Status = orderVars.Status
-			//resp.Side = orderVars.Side
-			//resp.Type = orderVars.OrderType
-			//resp.Fee = orderVars.Fee
-			//de.Websocket.DataHandler <- &resp
-		//case wsFills:
-			//var resultData WsFillsDataStore
-			//err = json.Unmarshal(respRaw, &resultData)
-			//if err != nil {
-				//return err
-			//}
-			//de.Websocket.DataHandler <- resultData.FillsData
-		//default:
-			//de.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: de.Name + stream.UnhandledMessage + string(respRaw)}
-		//}
+	//var p currency.Pair
+	//var a asset.Item
+	//market, ok := result["market"]
+	//if ok {
+	//p, err = currency.NewPairFromString(market.(string))
+	//if err != nil {
+	//return err
+	//}
+	//a, err = de.GetPairAssetType(p)
+	//if err != nil {
+	//return err
+	//}
+	//}
+	//switch result["channel"] {
+	//case wsTicker:
+	//var resultData WsTickerDataStore
+	//err = json.Unmarshal(respRaw, &resultData)
+	//if err != nil {
+	//return err
+	//}
+	//de.Websocket.DataHandler <- &ticker.Price{
+	//ExchangeName: de.Name,
+	//Bid:          resultData.Ticker.Bid,
+	//Ask:          resultData.Ticker.Ask,
+	//Last:         resultData.Ticker.Last,
+	//LastUpdated:  timestampFromFloat64(resultData.Ticker.Time),
+	//Pair:         p,
+	//AssetType:    a,
+	//}
+	//case wsOrderbook:
+	//var resultData WsOrderbookDataStore
+	//err = json.Unmarshal(respRaw, &resultData)
+	//if err != nil {
+	//return err
+	//}
+	//if len(resultData.OBData.Asks) == 0 && len(resultData.OBData.Bids) == 0 {
+	//return nil
+	//}
+	//err = de.WsProcessUpdateOB(&resultData.OBData, p, a)
+	//if err != nil {
+	//err2 := de.wsResubToOB(p)
+	//if err2 != nil {
+	//de.Websocket.DataHandler <- err2
+	//}
+	//return err
+	//}
+	//case wsTrades:
+	//var resultData WsTradeDataStore
+	//err = json.Unmarshal(respRaw, &resultData)
+	//if err != nil {
+	//return err
+	//}
+	//for z := range resultData.TradeData {
+	//var oSide order.Side
+	//oSide, err = order.StringToOrderSide(resultData.TradeData[z].Side)
+	//if err != nil {
+	//de.Websocket.DataHandler <- order.ClassificationError{
+	//Exchange: de.Name,
+	//Err:      err,
+	//}
+	//}
+	//de.Websocket.DataHandler <- stream.TradeData{
+	//Timestamp:    resultData.TradeData[z].Time,
+	//CurrencyPair: p,
+	//AssetType:    a,
+	//Exchange:     de.Name,
+	//Price:        resultData.TradeData[z].Price,
+	//Amount:       resultData.TradeData[z].Size,
+	//Side:         oSide,
+	//}
+	//}
+	//case wsOrders:
+	//var resultData WsOrderDataStore
+	//err = json.Unmarshal(respRaw, &resultData)
+	//if err != nil {
+	//return err
+	//}
+	//var pair currency.Pair
+	//pair, err = currency.NewPairFromString(resultData.OrderData.Market)
+	//if err != nil {
+	//return err
+	//}
+	//var assetType asset.Item
+	//assetType, err = de.GetPairAssetType(pair)
+	//if err != nil {
+	//return err
+	//}
+	//var oSide order.Side
+	//oSide, err = order.StringToOrderSide(resultData.OrderData.Side)
+	//if err != nil {
+	//de.Websocket.DataHandler <- order.ClassificationError{
+	//Exchange: de.Name,
+	//Err:      err,
+	//}
+	//}
+	//var resp order.Detail
+	//resp.Side = oSide
+	//resp.Amount = resultData.OrderData.Size
+	//resp.AssetType = assetType
+	//resp.ClientOrderID = resultData.OrderData.ClientID
+	//resp.Exchange = de.Name
+	//resp.ExecutedAmount = resultData.OrderData.FilledSize
+	//resp.ID = strconv.FormatInt(resultData.OrderData.ID, 10)
+	//resp.Pair = pair
+	//resp.RemainingAmount = resultData.OrderData.Size - resultData.OrderData.FilledSize
+	//var orderVars OrderVars
+	//orderVars, err = de.compatibleOrderVars(resultData.OrderData.Side,
+	//resultData.OrderData.Status,
+	//resultData.OrderData.OrderType,
+	//resultData.OrderData.FilledSize,
+	//resultData.OrderData.Size,
+	//resultData.OrderData.AvgFillPrice)
+	//if err != nil {
+	//return err
+	//}
+	//resp.Status = orderVars.Status
+	//resp.Side = orderVars.Side
+	//resp.Type = orderVars.OrderType
+	//resp.Fee = orderVars.Fee
+	//de.Websocket.DataHandler <- &resp
+	//case wsFills:
+	//var resultData WsFillsDataStore
+	//err = json.Unmarshal(respRaw, &resultData)
+	//if err != nil {
+	//return err
+	//}
+	//de.Websocket.DataHandler <- resultData.FillsData
+	//default:
+	//de.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: de.Name + stream.UnhandledMessage + string(respRaw)}
+	//}
 	//case wsPartial:
-		//switch result["channel"] {
-		//case "orderbook":
-			//var p currency.Pair
-			//var a asset.Item
-			//market, ok := result["market"]
-			//if ok {
-				//p, err = currency.NewPairFromString(market.(string))
-				//if err != nil {
-					//return err
-				//}
-				//a, err = de.GetPairAssetType(p)
-				//if err != nil {
-					//return err
-				//}
-			//}
-			//var resultData WsOrderbookDataStore
-			//err = json.Unmarshal(respRaw, &resultData)
-			//if err != nil {
-				//return err
-			//}
-			//err = de.WsProcessPartialOB(&resultData.OBData, p, a)
-			//if err != nil {
-				//err2 := de.wsResubToOB(p)
-				//if err2 != nil {
-					//de.Websocket.DataHandler <- err2
-				//}
-				//return err
-			//}
-			//// reset obchecksum failure blockage for pair
-			//delete(obSuccess, p)
-		//case wsMarkets:
-			//var resultData WSMarkets
-			//err = json.Unmarshal(respRaw, &resultData)
-			//if err != nil {
-				//return err
-			//}
-			//de.Websocket.DataHandler <- resultData.Data
-		//}
+	//switch result["channel"] {
+	//case "orderbook":
+	//var p currency.Pair
+	//var a asset.Item
+	//market, ok := result["market"]
+	//if ok {
+	//p, err = currency.NewPairFromString(market.(string))
+	//if err != nil {
+	//return err
+	//}
+	//a, err = de.GetPairAssetType(p)
+	//if err != nil {
+	//return err
+	//}
+	//}
+	//var resultData WsOrderbookDataStore
+	//err = json.Unmarshal(respRaw, &resultData)
+	//if err != nil {
+	//return err
+	//}
+	//err = de.WsProcessPartialOB(&resultData.OBData, p, a)
+	//if err != nil {
+	//err2 := de.wsResubToOB(p)
+	//if err2 != nil {
+	//de.Websocket.DataHandler <- err2
+	//}
+	//return err
+	//}
+	//// reset obchecksum failure blockage for pair
+	//delete(obSuccess, p)
+	//case wsMarkets:
+	//var resultData WSMarkets
+	//err = json.Unmarshal(respRaw, &resultData)
+	//if err != nil {
+	//return err
+	//}
+	//de.Websocket.DataHandler <- resultData.Data
+	//}
 	//case "error":
-		//de.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-			//Message: de.Name + stream.UnhandledMessage + string(respRaw),
-		//}
+	//de.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+	//Message: de.Name + stream.UnhandledMessage + string(respRaw),
+	//}
 	//}
 	return nil
 }
 
 // WsProcessUpdateOB processes an update on the orderbook
 //func (de *Deribit) WsProcessUpdateOB(data *WsOrderbookData, p currency.Pair, a asset.Item) error {
-	//update := buffer.Update{
-		//Asset:      a,
-		//Pair:       p,
-		//UpdateTime: timestampFromFloat64(data.Time),
-	//}
+//update := buffer.Update{
+//Asset:      a,
+//Pair:       p,
+//UpdateTime: timestampFromFloat64(data.Time),
+//}
 
-	//var err error
-	//for x := range data.Bids {
-		//update.Bids = append(update.Bids, orderbook.Item{
-			//Price:  data.Bids[x][0],
-			//Amount: data.Bids[x][1],
-		//})
-	//}
-	//for x := range data.Asks {
-		//update.Asks = append(update.Asks, orderbook.Item{
-			//Price:  data.Asks[x][0],
-			//Amount: data.Asks[x][1],
-		//})
-	//}
+//var err error
+//for x := range data.Bids {
+//update.Bids = append(update.Bids, orderbook.Item{
+//Price:  data.Bids[x][0],
+//Amount: data.Bids[x][1],
+//})
+//}
+//for x := range data.Asks {
+//update.Asks = append(update.Asks, orderbook.Item{
+//Price:  data.Asks[x][0],
+//Amount: data.Asks[x][1],
+//})
+//}
 
-	//err = de.Websocket.Orderbook.Update(&update)
-	//if err != nil {
-		//return err
-	//}
+//err = de.Websocket.Orderbook.Update(&update)
+//if err != nil {
+//return err
+//}
 
-	//updatedOb := de.Websocket.Orderbook.GetOrderbook(p, a)
-	//checksum := de.CalcUpdateOBChecksum(updatedOb)
+//updatedOb := de.Websocket.Orderbook.GetOrderbook(p, a)
+//checksum := de.CalcUpdateOBChecksum(updatedOb)
 
-	//if checksum != data.Checksum {
-		//log.Warnf(log.ExchangeSys, "%s checksum failure for item %s",
-			//de.Name,
-			//p)
-		//return errors.New("checksum failed")
-	//}
-	//return nil
+//if checksum != data.Checksum {
+//log.Warnf(log.ExchangeSys, "%s checksum failure for item %s",
+//de.Name,
+//p)
+//return errors.New("checksum failed")
+//}
+//return nil
 //}
 
 //func (de *Deribit) wsResubToOB(p currency.Pair) error {
-	//if ok := obSuccess[p]; ok {
-		//return nil
-	//}
+//if ok := obSuccess[p]; ok {
+//return nil
+//}
 
-	//obSuccess[p] = true
+//obSuccess[p] = true
 
-	//channelToResubscribe := &stream.ChannelSubscription{
-		//Channel:  wsOrderbook,
-		//Currency: p,
-	//}
-	//err := de.Websocket.ResubscribeToChannel(channelToResubscribe)
-	//if err != nil {
-		//return fmt.Errorf("%s resubscribe to orderbook failure %s", de.Name, err)
-	//}
-	//return nil
+//channelToResubscribe := &stream.ChannelSubscription{
+//Channel:  wsOrderbook,
+//Currency: p,
+//}
+//err := de.Websocket.ResubscribeToChannel(channelToResubscribe)
+//if err != nil {
+//return fmt.Errorf("%s resubscribe to orderbook failure %s", de.Name, err)
+//}
+//return nil
 //}
 
 //// WsProcessPartialOB creates an OB from websocket data
 //func (de *Deribit) WsProcessPartialOB(data *WsOrderbookData, p currency.Pair, a asset.Item) error {
-	//signedChecksum := de.CalcPartialOBChecksum(data)
-	//if signedChecksum != data.Checksum {
-		//return fmt.Errorf("%s channel: %s. Orderbook partial for %v checksum invalid",
-			//de.Name,
-			//a,
-			//p)
-	//}
-	//var bids, asks []orderbook.Item
-	//for x := range data.Bids {
-		//bids = append(bids, orderbook.Item{
-			//Price:  data.Bids[x][0],
-			//Amount: data.Bids[x][1],
-		//})
-	//}
-	//for x := range data.Asks {
-		//asks = append(asks, orderbook.Item{
-			//Price:  data.Asks[x][0],
-			//Amount: data.Asks[x][1],
-		//})
-	//}
+//signedChecksum := de.CalcPartialOBChecksum(data)
+//if signedChecksum != data.Checksum {
+//return fmt.Errorf("%s channel: %s. Orderbook partial for %v checksum invalid",
+//de.Name,
+//a,
+//p)
+//}
+//var bids, asks []orderbook.Item
+//for x := range data.Bids {
+//bids = append(bids, orderbook.Item{
+//Price:  data.Bids[x][0],
+//Amount: data.Bids[x][1],
+//})
+//}
+//for x := range data.Asks {
+//asks = append(asks, orderbook.Item{
+//Price:  data.Asks[x][0],
+//Amount: data.Asks[x][1],
+//})
+//}
 
-	//newOrderBook := orderbook.Base{
-		//Asks:         asks,
-		//Bids:         bids,
-		//AssetType:    a,
-		//LastUpdated:  timestampFromFloat64(data.Time),
-		//Pair:         p,
-		//ExchangeName: de.Name,
-	//}
-	//return de.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+//newOrderBook := orderbook.Base{
+//Asks:         asks,
+//Bids:         bids,
+//AssetType:    a,
+//LastUpdated:  timestampFromFloat64(data.Time),
+//Pair:         p,
+//ExchangeName: de.Name,
+//}
+//return de.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 //}
 
 //// CalcPartialOBChecksum calculates checksum of partial OB data received from WS
 //func (de *Deribit) CalcPartialOBChecksum(data *WsOrderbookData) int64 {
-	//var checksum strings.Builder
-	//var price, amount string
-	//for i := 0; i < 100; i++ {
-		//if len(data.Bids)-1 >= i {
-			//price = checksumParseNumber(data.Bids[i][0])
-			//amount = checksumParseNumber(data.Bids[i][1])
-			//checksum.WriteString(price + ":" + amount + ":")
-		//}
-		//if len(data.Asks)-1 >= i {
-			//price = checksumParseNumber(data.Asks[i][0])
-			//amount = checksumParseNumber(data.Asks[i][1])
-			//checksum.WriteString(price + ":" + amount + ":")
-		//}
-	//}
-	//checksumStr := strings.TrimSuffix(checksum.String(), ":")
-	//return int64(crc32.ChecksumIEEE([]byte(checksumStr)))
+//var checksum strings.Builder
+//var price, amount string
+//for i := 0; i < 100; i++ {
+//if len(data.Bids)-1 >= i {
+//price = checksumParseNumber(data.Bids[i][0])
+//amount = checksumParseNumber(data.Bids[i][1])
+//checksum.WriteString(price + ":" + amount + ":")
+//}
+//if len(data.Asks)-1 >= i {
+//price = checksumParseNumber(data.Asks[i][0])
+//amount = checksumParseNumber(data.Asks[i][1])
+//checksum.WriteString(price + ":" + amount + ":")
+//}
+//}
+//checksumStr := strings.TrimSuffix(checksum.String(), ":")
+//return int64(crc32.ChecksumIEEE([]byte(checksumStr)))
 //}
 
 //// CalcUpdateOBChecksum calculates checksum of update OB data received from WS
 //func (de *Deribit) CalcUpdateOBChecksum(data *orderbook.Base) int64 {
-	//var checksum strings.Builder
-	//var price, amount string
-	//for i := 0; i < 100; i++ {
-		//if len(data.Bids)-1 >= i {
-			//price = checksumParseNumber(data.Bids[i].Price)
-			//amount = checksumParseNumber(data.Bids[i].Amount)
-			//checksum.WriteString(price + ":" + amount + ":")
-		//}
-		//if len(data.Asks)-1 >= i {
-			//price = checksumParseNumber(data.Asks[i].Price)
-			//amount = checksumParseNumber(data.Asks[i].Amount)
-			//checksum.WriteString(price + ":" + amount + ":")
-		//}
-	//}
-	//checksumStr := strings.TrimSuffix(checksum.String(), ":")
-	//return int64(crc32.ChecksumIEEE([]byte(checksumStr)))
+//var checksum strings.Builder
+//var price, amount string
+//for i := 0; i < 100; i++ {
+//if len(data.Bids)-1 >= i {
+//price = checksumParseNumber(data.Bids[i].Price)
+//amount = checksumParseNumber(data.Bids[i].Amount)
+//checksum.WriteString(price + ":" + amount + ":")
+//}
+//if len(data.Asks)-1 >= i {
+//price = checksumParseNumber(data.Asks[i].Price)
+//amount = checksumParseNumber(data.Asks[i].Amount)
+//checksum.WriteString(price + ":" + amount + ":")
+//}
+//}
+//checksumStr := strings.TrimSuffix(checksum.String(), ":")
+//return int64(crc32.ChecksumIEEE([]byte(checksumStr)))
 //}
 
 //func checksumParseNumber(num float64) string {
-	//modifier := byte('f')
-	//if num < 0.0001 {
-		//modifier = 'e'
-	//}
-	//r := strconv.FormatFloat(num, modifier, -1, 64)
-	//if strings.IndexByte(r, '.') == -1 && modifier != 'e' {
-		//r += ".0"
-	//}
-	//return r
+//modifier := byte('f')
+//if num < 0.0001 {
+//modifier = 'e'
+//}
+//r := strconv.FormatFloat(num, modifier, -1, 64)
+//if strings.IndexByte(r, '.') == -1 && modifier != 'e' {
+//r += ".0"
+//}
+//return r
 //}

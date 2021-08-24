@@ -3,6 +3,7 @@ package coinbene
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -123,17 +124,17 @@ type WsSub struct {
 
 // WsTickerData stores websocket ticker data
 type WsTickerData struct {
-	Symbol        string    `json:"symbol"`
-	LastPrice     float64   `json:"lastPrice,string"`
-	MarkPrice     float64   `json:"markPrice,string"`
-	BestAskPrice  float64   `json:"bestAskPrice,string"`
-	BestBidPrice  float64   `json:"bestBidPrice,string"`
-	BestAskVolume float64   `json:"bestAskVolume,string"`
-	BestBidVolume float64   `json:"bestBidVolume,string"`
-	High24h       float64   `json:"high24h,string"`
-	Low24h        float64   `json:"low24h,string"`
-	Volume24h     float64   `json:"volume24h,string"`
-	Timestamp     time.Time `json:"timestamp"`
+	Symbol        string  `json:"symbol"`
+	LastPrice     float64 `json:"lastPrice,string"`
+	MarkPrice     float64 `json:"markPrice,string"`
+	BestAskPrice  float64 `json:"bestAskPrice,string"`
+	BestBidPrice  float64 `json:"bestBidPrice,string"`
+	BestAskVolume float64 `json:"bestAskVolume,string"`
+	BestBidVolume float64 `json:"bestBidVolume,string"`
+	High24h       float64 `json:"high24h,string"`
+	Low24h        float64 `json:"low24h,string"`
+	Volume24h     float64 `json:"volume24h,string"`
+	Timestamp     int64   `json:"timestamp"`
 }
 
 // WsTicker stores websocket ticker
@@ -144,14 +145,38 @@ type WsTicker struct {
 
 // WsTradeList stores websocket tradelist data
 type WsTradeList struct {
-	Topic string     `json:"topic"`
-	Data  [][]string `json:"data"`
+	Topic string           `json:"topic"`
+	Data  [][4]interface{} `json:"data"`
+}
+
+// WsTradeData stores trade data for websocket
+type WsTradeData struct {
+	BestAskPrice float64 `json:"bestAskPrice,string"`
+	BestBidPrice float64 `json:"bestBidPrice,string"`
+	High24h      float64 `json:"high24h,string"`
+	LastPrice    float64 `json:"lastPrice,string"`
+	Low24h       float64 `json:"low24h,string"`
+	Open24h      float64 `json:"open24h,string"`
+	OpenPrice    float64 `json:"openPrice,string"`
+	Symbol       string  `json:"symbol"`
+	Timestamp    int64   `json:"timestamp"`
+	Volume24h    float64 `json:"volume24h,string"`
 }
 
 // WsKline stores websocket kline data
 type WsKline struct {
-	Topic string          `json:"topic"`
-	Data  [][]interface{} `json:"data"`
+	Topic string        `json:"topic"`
+	Data  []WsKLineData `json:"data"`
+}
+
+// WsKLineData holds OHLCV data
+type WsKLineData struct {
+	Open      float64 `json:"o"`
+	High      float64 `json:"h"`
+	Low       float64 `json:"l"`
+	Close     float64 `json:"c"`
+	Volume    float64 `json:"v"`
+	Timestamp int64   `json:"t"`
 }
 
 // WsUserData stores websocket user data
@@ -191,6 +216,18 @@ type WsPosition struct {
 	Data  []WsPositionData `json:"data"`
 }
 
+// WsOrderbookData stores ws orderbook data
+type WsOrderbookData struct {
+	Topic  string `json:"topic"`
+	Action string `json:"action"`
+	Data   []struct {
+		Bids      [][2]string `json:"bids"`
+		Asks      [][2]string `json:"asks"`
+		Version   int64       `json:"version"`
+		Timestamp int64       `json:"timestamp"`
+	} `json:"data"`
+}
+
 // WsOrderData stores websocket user order data
 type WsOrderData struct {
 	OrderID          string    `json:"orderId"`
@@ -219,17 +256,19 @@ type WsUserOrders struct {
 
 // SwapTicker stores the swap ticker info
 type SwapTicker struct {
-	LastPrice     float64   `json:"lastPrice,string"`
-	MarkPrice     float64   `json:"markPrice,string"`
-	BestAskPrice  float64   `json:"bestAskPrice,string"`
-	BestBidPrice  float64   `json:"bestBidPrice,string"`
-	High24Hour    float64   `json:"high24h,string"`
-	Low24Hour     float64   `json:"low24h,string"`
-	Volume24Hour  float64   `json:"volume24h,string"`
-	BestAskVolume float64   `json:"bestAskVolume,string"`
-	BestBidVolume float64   `json:"bestBidVolume,string"`
-	Turnover      float64   `json:"turnover,string"`
-	Timestamp     time.Time `json:"timeStamp"`
+	LastPrice      float64   `json:"lastPrice,string"`
+	MarkPrice      float64   `json:"markPrice,string"`
+	BestAskPrice   float64   `json:"bestAskPrice,string"`
+	BestBidPrice   float64   `json:"bestBidPrice,string"`
+	High24Hour     float64   `json:"high24h,string"`
+	Low24Hour      float64   `json:"low24h,string"`
+	Volume24Hour   float64   `json:"volume24h,string"`
+	BestAskVolume  float64   `json:"bestAskVolume,string"`
+	BestBidVolume  float64   `json:"bestBidVolume,string"`
+	Turnover       float64   `json:"turnover,string"`
+	Timestamp      time.Time `json:"timeStamp"`
+	Change24Hour   float64   `json:"chg24h,string"`
+	ChangeZeroHour float64   `json:"chg0h,string"`
 }
 
 // SwapTickers stores a map of swap tickers
@@ -250,6 +289,16 @@ type SwapKlineItem struct {
 
 // SwapKlines stores an array of kline data
 type SwapKlines []SwapKlineItem
+
+// Instrument stores an individual tradable instrument
+type Instrument struct {
+	InstrumentID       currency.Pair `json:"instrumentId"`
+	Multiplier         float64       `json:"multiplier,string"`
+	MinimumAmount      float64       `json:"minAmount,string"`
+	MaximumAmount      float64       `json:"maxAmount,string"`
+	MinimumPriceChange float64       `json:"minPriceChange,string"`
+	PricePrecision     int64         `json:"pricePrecision,string"`
+}
 
 // SwapTrade stores an individual trade
 type SwapTrade struct {

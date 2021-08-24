@@ -3,6 +3,7 @@ package itbit
 import (
 	"fmt"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -92,9 +94,13 @@ func (i *ItBit) SetDefaults() {
 
 	i.Requester = request.New(i.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
-
-	i.API.Endpoints.URLDefault = itbitAPIURL
-	i.API.Endpoints.URL = i.API.Endpoints.URLDefault
+	i.API.Endpoints = i.NewEndpoints()
+	err = i.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		exchange.RestSpot: itbitAPIURL,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 }
 
 // Setup sets the exchange parameters from exchange config
@@ -184,9 +190,16 @@ func (i *ItBit) FetchOrderbook(p currency.Pair, assetType asset.Item) (*orderboo
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+	book := &orderbook.Base{
+		Exchange:         i.Name,
+		Pair:             p,
+		Asset:            assetType,
+		PriceDuplication: true,
+		VerifyOrderbook:  i.CanVerifyOrderbook,
+	}
 	fpair, err := i.FormatExchangeCurrency(p, assetType)
 	if err != nil {
-		return nil, err
+		return book, err
 	}
 
 	orderbookNew, err := i.GetOrderbook(fpair.String())
@@ -194,18 +207,17 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 		return nil, err
 	}
 
-	orderBook := new(orderbook.Base)
 	for x := range orderbookNew.Bids {
 		var price, amount float64
 		price, err = strconv.ParseFloat(orderbookNew.Bids[x][0], 64)
 		if err != nil {
-			return orderBook, err
+			return book, err
 		}
 		amount, err = strconv.ParseFloat(orderbookNew.Bids[x][1], 64)
 		if err != nil {
-			return orderBook, err
+			return book, err
 		}
-		orderBook.Bids = append(orderBook.Bids,
+		book.Bids = append(book.Bids,
 			orderbook.Item{
 				Amount: amount,
 				Price:  price,
@@ -216,33 +228,27 @@ func (i *ItBit) UpdateOrderbook(p currency.Pair, assetType asset.Item) (*orderbo
 		var price, amount float64
 		price, err = strconv.ParseFloat(orderbookNew.Asks[x][0], 64)
 		if err != nil {
-			return orderBook, err
+			return book, err
 		}
 		amount, err = strconv.ParseFloat(orderbookNew.Asks[x][1], 64)
 		if err != nil {
-			return orderBook, err
+			return book, err
 		}
-		orderBook.Asks = append(orderBook.Asks,
+		book.Asks = append(book.Asks,
 			orderbook.Item{
 				Amount: amount,
 				Price:  price,
 			})
 	}
-
-	orderBook.Pair = p
-	orderBook.ExchangeName = i.Name
-	orderBook.AssetType = assetType
-
-	err = orderBook.Process()
+	err = book.Process()
 	if err != nil {
-		return orderBook, err
+		return book, err
 	}
-
 	return orderbook.Get(i.Name, p, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-func (i *ItBit) UpdateAccountInfo() (account.Holdings, error) {
+func (i *ItBit) UpdateAccountInfo(assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	info.Exchange = i.Name
 
@@ -291,10 +297,10 @@ func (i *ItBit) UpdateAccountInfo() (account.Holdings, error) {
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
-func (i *ItBit) FetchAccountInfo() (account.Holdings, error) {
-	acc, err := account.GetHoldings(i.Name)
+func (i *ItBit) FetchAccountInfo(assetType asset.Item) (account.Holdings, error) {
+	acc, err := account.GetHoldings(i.Name, assetType)
 	if err != nil {
-		return i.UpdateAccountInfo()
+		return i.UpdateAccountInfo(assetType)
 	}
 
 	return acc, nil
@@ -306,9 +312,49 @@ func (i *ItBit) GetFundingHistory() ([]exchange.FundHistory, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetExchangeHistory returns historic trade data within the timeframe provided.
-func (i *ItBit) GetExchangeHistory(p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]exchange.TradeHistory, error) {
+// GetWithdrawalsHistory returns previous withdrawals data
+func (i *ItBit) GetWithdrawalsHistory(c currency.Code) (resp []exchange.WithdrawalHistory, err error) {
 	return nil, common.ErrNotYetImplemented
+}
+
+// GetRecentTrades returns the most recent trades for a currency and asset
+func (i *ItBit) GetRecentTrades(p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+	var err error
+	p, err = i.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	var tradeData Trades
+	tradeData, err = i.GetTradeHistory(p.String(), "")
+	if err != nil {
+		return nil, err
+	}
+	var resp []trade.Data
+	for x := range tradeData.RecentTrades {
+		resp = append(resp, trade.Data{
+			Exchange:     i.Name,
+			TID:          tradeData.RecentTrades[x].MatchNumber,
+			CurrencyPair: p,
+			AssetType:    assetType,
+			Price:        tradeData.RecentTrades[x].Price,
+			Amount:       tradeData.RecentTrades[x].Amount,
+			Timestamp:    tradeData.RecentTrades[x].Timestamp,
+		})
+	}
+
+	err = i.AddTradesToBuffer(resp...)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Sort(trade.ByDate(resp))
+	return resp, nil
+}
+
+// GetHistoricTrades returns historic trade data within the timeframe provided
+func (i *ItBit) GetHistoricTrades(_ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	// cannot do time based retrieval of trade data
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
@@ -341,13 +387,18 @@ func (i *ItBit) SubmitOrder(s *order.Submit) (order.SubmitResponse, error) {
 				s.Amount)
 	}
 
+	fPair, err := i.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return submitOrderResponse, err
+	}
+
 	response, err := i.PlaceOrder(wallet,
 		s.Side.String(),
 		s.Type.String(),
-		s.Pair.Base.String(),
+		fPair.Base.String(),
 		s.Amount,
 		s.Price,
-		s.Pair.String(),
+		fPair.String(),
 		"")
 	if err != nil {
 		return submitOrderResponse, err
@@ -370,12 +421,23 @@ func (i *ItBit) ModifyOrder(action *order.Modify) (string, error) {
 }
 
 // CancelOrder cancels an order by its corresponding ID number
-func (i *ItBit) CancelOrder(order *order.Cancel) error {
-	return i.CancelExistingOrder(order.WalletAddress, order.ID)
+func (i *ItBit) CancelOrder(o *order.Cancel) error {
+	if err := o.Validate(o.StandardCancel()); err != nil {
+		return err
+	}
+	return i.CancelExistingOrder(o.WalletAddress, o.ID)
+}
+
+// CancelBatchOrders cancels an orders by their corresponding ID numbers
+func (i *ItBit) CancelBatchOrders(o []order.Cancel) (order.CancelBatchResponse, error) {
+	return order.CancelBatchResponse{}, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (i *ItBit) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+	if err := orderCancellation.Validate(); err != nil {
+		return order.CancelAllResponse{}, err
+	}
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
@@ -394,8 +456,8 @@ func (i *ItBit) CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAl
 	return cancelAllOrdersResponse, nil
 }
 
-// GetOrderInfo returns information on a current open order
-func (i *ItBit) GetOrderInfo(orderID string) (order.Detail, error) {
+// GetOrderInfo returns order information based on order ID
+func (i *ItBit) GetOrderInfo(orderID string, pair currency.Pair, assetType asset.Item) (order.Detail, error) {
 	var orderDetail order.Detail
 	return orderDetail, common.ErrNotYetImplemented
 }
@@ -404,25 +466,25 @@ func (i *ItBit) GetOrderInfo(orderID string) (order.Detail, error) {
 // NOTE: This has not been implemented due to the fact you need to generate a
 // a specific wallet ID and they restrict the amount of deposit address you can
 // request limiting them to 2.
-func (i *ItBit) GetDepositAddress(cryptocurrency currency.Code, accountID string) (string, error) {
+func (i *ItBit) GetDepositAddress(_ currency.Code, _ string) (string, error) {
 	return "", common.ErrNotYetImplemented
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (i *ItBit) WithdrawCryptocurrencyFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (i *ItBit) WithdrawCryptocurrencyFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
-func (i *ItBit) WithdrawFiatFunds(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (i *ItBit) WithdrawFiatFunds(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
-func (i *ItBit) WithdrawFiatFundsToInternationalBank(withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (i *ItBit) WithdrawFiatFundsToInternationalBank(_ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -437,6 +499,9 @@ func (i *ItBit) GetFeeByType(feeBuilder *exchange.FeeBuilder) (float64, error) {
 
 // GetActiveOrders retrieves any orders that are active/open
 func (i *ItBit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
 	wallets, err := i.GetWallets(url.Values{})
 	if err != nil {
 		return nil, err
@@ -488,7 +553,7 @@ func (i *ItBit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
@@ -497,6 +562,10 @@ func (i *ItBit) GetActiveOrders(req *order.GetOrdersRequest) ([]order.Detail, er
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	wallets, err := i.GetWallets(url.Values{})
 	if err != nil {
 		return nil, err
@@ -552,7 +621,7 @@ func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 		})
 	}
 
-	order.FilterOrdersByTickRange(&orders, req.StartTicks, req.EndTicks)
+	order.FilterOrdersByTimeRange(&orders, req.StartTime, req.EndTime)
 	order.FilterOrdersBySide(&orders, req.Side)
 	order.FilterOrdersByCurrencies(&orders, req.Pairs)
 	return orders, nil
@@ -560,8 +629,8 @@ func (i *ItBit) GetOrderHistory(req *order.GetOrdersRequest) ([]order.Detail, er
 
 // ValidateCredentials validates current credentials used for wrapper
 // functionality
-func (i *ItBit) ValidateCredentials() error {
-	_, err := i.UpdateAccountInfo()
+func (i *ItBit) ValidateCredentials(assetType asset.Item) error {
+	_, err := i.UpdateAccountInfo(assetType)
 	return i.CheckTransientError(err)
 }
 

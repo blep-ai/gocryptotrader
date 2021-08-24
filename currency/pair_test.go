@@ -397,7 +397,7 @@ func TestNewPairDelimiter(t *testing.T) {
 		t.Fatal(err)
 	}
 	actual = pair.String()
-	expected = "fBTC-USDT"
+	expected = "fbtc-USDT"
 	if actual != expected {
 		t.Errorf(
 			"Pair(): %s was not equal to expected value: %s",
@@ -691,5 +691,147 @@ func TestIsInvalid(t *testing.T) {
 	p := NewPair(LTC, LTC)
 	if !p.IsInvalid() {
 		t.Error("IsInvalid() error expect true but received false")
+	}
+}
+
+func TestMatchPairsWithNoDelimiter(t *testing.T) {
+	p1, err := NewPairDelimiter("BTC-USDT", "-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p2, err := NewPairDelimiter("LTC-USD", "-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p3, err := NewPairFromStrings("EQUAD", "BTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p4, err := NewPairFromStrings("HTDF", "USDT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p5, err := NewPairFromStrings("BETHER", "ETH")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pairs := Pairs{
+		p1,
+		p2,
+		p3,
+		p4,
+		p5,
+	}
+
+	p, err := MatchPairsWithNoDelimiter("BTCUSDT", pairs, PairFormat{
+		Uppercase: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Quote.String() != "USDT" && p.Base.String() != "BTC" {
+		t.Error("unexpected response")
+	}
+
+	p, err = MatchPairsWithNoDelimiter("EQUADBTC", pairs, PairFormat{
+		Uppercase: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Base.String() != "EQUAD" && p.Quote.String() != "BTC" {
+		t.Errorf("unexpected response base: %v quote: %v", p.Base.String(), p.Quote.String())
+	}
+
+	p, err = MatchPairsWithNoDelimiter("EQUADBTC", pairs, PairFormat{
+		Uppercase: true,
+		Delimiter: "/",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Base.String() != "EQUAD" && p.Quote.String() != "BTC" {
+		t.Errorf("unexpected response base: %v quote: %v", p.Base.String(), p.Quote.String())
+	}
+
+	p, err = MatchPairsWithNoDelimiter("HTDFUSDT", pairs, PairFormat{
+		Uppercase: true,
+		Delimiter: "/",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Base.String() != "HTDF" && p.Quote.String() != "USDT" {
+		t.Errorf("unexpected response base: %v quote: %v", p.Base.String(), p.Quote.String())
+	}
+
+	p, err = MatchPairsWithNoDelimiter("BETHERETH", pairs, PairFormat{
+		Uppercase: true,
+		Delimiter: "/",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Base.String() != "BETHER" && p.Quote.String() != "ETH" {
+		t.Errorf("unexpected response base: %v quote: %v", p.Base.String(), p.Quote.String())
+	}
+}
+
+func TestPairFormat_Format(t *testing.T) {
+	type fields struct {
+		Uppercase bool
+		Delimiter string
+		Separator string
+		Index     string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		arg    Pair
+		want   string
+	}{
+		{
+			name:   "empty",
+			fields: fields{},
+			arg:    Pair{},
+			want:   "",
+		},
+		{
+			name:   "empty format",
+			fields: fields{},
+			arg: Pair{
+				Delimiter: "<>",
+				Base:      AAA,
+				Quote:     BTC,
+			},
+			want: "aaabtc",
+		},
+		{
+			name: "format",
+			fields: fields{
+				Uppercase: true,
+				Delimiter: "!!!",
+			},
+			arg: Pair{
+				Delimiter: "<>",
+				Base:      AAA,
+				Quote:     BTC,
+			},
+			want: "AAA!!!BTC",
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			f := &PairFormat{
+				Uppercase: tt.fields.Uppercase,
+				Delimiter: tt.fields.Delimiter,
+				Separator: tt.fields.Separator,
+				Index:     tt.fields.Index,
+			}
+			if got := f.Format(tt.arg); got != tt.want {
+				t.Errorf("PairFormat.Format() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

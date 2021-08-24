@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -104,7 +105,6 @@ func (b *Bitmex) WsConnect() error {
 	if err != nil {
 		return err
 	}
-
 	err = b.websocketSendAuth()
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
@@ -215,15 +215,23 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			}
 
 		case bitmexWSTrade:
-			var trades TradeData
-			err = json.Unmarshal(respRaw, &trades)
+			if !b.IsSaveTradeDataEnabled() {
+				return nil
+			}
+			var tradeHolder TradeData
+			err = json.Unmarshal(respRaw, &tradeHolder)
 			if err != nil {
 				return err
 			}
-
-			for i := range trades.Data {
+			var trades []trade.Data
+			for i := range tradeHolder.Data {
+				if tradeHolder.Data[i].Price == 0 {
+					// Please note that indices (symbols starting with .) post trades at intervals to the trade feed.
+					// These have a size of 0 and are used only to indicate a changing price.
+					continue
+				}
 				var p currency.Pair
-				p, err = currency.NewPairFromString(trades.Data[i].Symbol)
+				p, err = currency.NewPairFromString(tradeHolder.Data[i].Symbol)
 				if err != nil {
 					return err
 				}
@@ -234,7 +242,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 					return err
 				}
 				var oSide order.Side
-				oSide, err = order.StringToOrderSide(trades.Data[i].Side)
+				oSide, err = order.StringToOrderSide(tradeHolder.Data[i].Side)
 				if err != nil {
 					b.Websocket.DataHandler <- order.ClassificationError{
 						Exchange: b.Name,
@@ -242,17 +250,18 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 					}
 				}
 
-				b.Websocket.DataHandler <- stream.TradeData{
-					Timestamp:    trades.Data[i].Timestamp,
-					Price:        trades.Data[i].Price,
-					Amount:       float64(trades.Data[i].Size),
-					CurrencyPair: p,
+				trades = append(trades, trade.Data{
+					TID:          tradeHolder.Data[i].TrdMatchID,
 					Exchange:     b.Name,
+					CurrencyPair: p,
 					AssetType:    a,
 					Side:         oSide,
-				}
+					Price:        tradeHolder.Data[i].Price,
+					Amount:       float64(tradeHolder.Data[i].Size),
+					Timestamp:    tradeHolder.Data[i].Timestamp,
+				})
 			}
-
+			return b.AddTradesToBuffer(trades...)
 		case bitmexWSAnnouncement:
 			var announcement AnnouncementData
 			err = json.Unmarshal(respRaw, &announcement)
@@ -280,7 +289,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 			}
 
 			//if response.Action == bitmexActionInitialData {
-				//return nil
+			//return nil
 			//}
 
 			for i := range response.Data {
@@ -454,7 +463,7 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 							Err:      err,
 						}
 					}
-					b.Websocket.DataHandler <- &order.Cancel{
+					b.Websocket.DataHandler <- &order.Modify{
 						Price:     response.Data[x].Price,
 						Amount:    response.Data[x].OrderQuantity,
 						Exchange:  b.Name,
@@ -517,50 +526,52 @@ func (b *Bitmex) wsHandleData(respRaw []byte) error {
 // ProcessOrderbook processes orderbook updates
 func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.Pair, a asset.Item) error {
 	if len(data) < 1 {
-		return errors.New("bitmex_websocket.go error - no orderbook data")
+		return errors.New("no orderbook data")
 	}
 
 	switch action {
 	case bitmexActionInitialData:
-		var newOrderBook orderbook.Base
+		var book orderbook.Base
 		for i := range data {
-			if strings.EqualFold(data[i].Side, order.Sell.String()) {
-				newOrderBook.Asks = append(newOrderBook.Asks, orderbook.Item{
-					Price:  data[i].Price,
-					Amount: float64(data[i].Size),
-					ID:     data[i].ID,
-				})
-				continue
-			}
-			newOrderBook.Bids = append(newOrderBook.Bids, orderbook.Item{
+			item := orderbook.Item{
 				Price:  data[i].Price,
 				Amount: float64(data[i].Size),
 				ID:     data[i].ID,
-			})
+			}
+			switch {
+			case strings.EqualFold(data[i].Side, order.Sell.String()):
+				book.Asks = append(book.Asks, item)
+			case strings.EqualFold(data[i].Side, order.Buy.String()):
+				book.Bids = append(book.Bids, item)
+			default:
+				return fmt.Errorf("could not process websocket orderbook update, order side could not be matched for %s",
+					data[i].Side)
+			}
 		}
-		newOrderBook.AssetType = a
-		newOrderBook.Pair = p
-		newOrderBook.ExchangeName = b.Name
+		book.Asks.Reverse() // Reverse asks for correct alignment
+		book.Asset = a
+		book.Pair = p
+		book.Exchange = b.Name
+		book.VerifyOrderbook = b.CanVerifyOrderbook
 
-		err := b.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
+		err := b.Websocket.Orderbook.LoadSnapshot(&book)
 		if err != nil {
-			return fmt.Errorf("bitmex_websocket.go process orderbook error -  %s",
+			return fmt.Errorf("process orderbook error -  %s",
 				err)
 		}
 	default:
 		var asks, bids []orderbook.Item
 		for i := range data {
-			if strings.EqualFold(data[i].Side, "Sell") {
-				asks = append(asks, orderbook.Item{
-					Amount: float64(data[i].Size),
-					ID:     data[i].ID,
-				})
-				continue
-			}
-			bids = append(bids, orderbook.Item{
+			nItem := orderbook.Item{
+				Price:  data[i].Price,
 				Amount: float64(data[i].Size),
 				ID:     data[i].ID,
-			})
+			}
+			if strings.EqualFold(data[i].Side, "Sell") {
+				asks = append(asks, nItem)
+				continue
+			}
+			bids = append(bids, nItem)
 		}
 
 		err := b.Websocket.Orderbook.Update(&buffer.Update{
@@ -568,7 +579,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 			Asks:   asks,
 			Pair:   p,
 			Asset:  a,
-			Action: action,
+			Action: buffer.Action(action),
 		})
 		if err != nil {
 			return err
@@ -579,7 +590,7 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	assets := b.GetAssetTypes()
+	assets := b.GetAssetTypes(true)
 	var allPairs currency.Pairs
 	var associatedAssets []asset.Item
 	for x := range assets {
@@ -604,13 +615,24 @@ func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 		},
 	}
 
-	for i := range channels {
-		for j := range allPairs {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  channels[i] + ":" + allPairs[j].String(),
-				Currency: allPairs[j],
-				Asset:    associatedAssets[j],
-			})
+	assets = b.GetAssetTypes(true)
+	for x := range assets {
+		contracts, err := b.GetEnabledPairs(assets[x])
+		if err != nil {
+			return nil, err
+		}
+		for y := range contracts {
+			for z := range channels {
+				if assets[x] == asset.Index && channels[z] == bitmexWSOrderbookL2 {
+					// There are no L2 orderbook for index assets
+					continue
+				}
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Channel:  channels[z] + ":" + contracts[y].String(),
+					Currency: contracts[y],
+					Asset:    assets[x],
+				})
+			}
 		}
 	}
 	return subscriptions, nil

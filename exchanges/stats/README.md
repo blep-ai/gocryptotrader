@@ -1,9 +1,9 @@
 # GoCryptoTrader package Stats
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
-[![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
+[![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/stats)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
@@ -22,9 +22,9 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 + This stats package services the exchanges package by providing stats on
 enabled exchanges i.e.
-  - Sort by largest volume
-  - Sort by best price for currency
-  - Others will be added soon
+	- Sort by largest volume
+	- Sort by best price for currency
+	- Others will be added soon
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

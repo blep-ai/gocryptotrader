@@ -1,9 +1,9 @@
 # GoCryptoTrader package Lbank
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
-[![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
+[![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/exchanges/lbank)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
@@ -31,8 +31,8 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + Individual package example below:
 
 ```go
-  // Exchanges will be abstracted out in further updates and examples will be
-  // supplied then
+	// Exchanges will be abstracted out in further updates and examples will be
+	// supplied then
 ```
 
 ### How to do REST public/private calls
@@ -48,9 +48,9 @@ main.go
 var l exchange.IBotExchange
 
 for i := range Bot.Exchanges {
-  if Bot.Exchanges[i].GetName() == "Lbank" {
-    l = Bot.Exchanges[i]
-  }
+	if Bot.Exchanges[i].GetName() == "Lbank" {
+		l = Bot.Exchanges[i]
+	}
 }
 
 // Public calls - wrapper functions
@@ -58,13 +58,13 @@ for i := range Bot.Exchanges {
 // Fetches current ticker information
 tick, err := l.FetchTicker()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Fetches current orderbook information
 ob, err := l.FetchOrderbook()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Private calls - wrapper functions - make sure your APIKEY and APISECRET are
@@ -73,7 +73,7 @@ if err != nil {
 // Fetches current account information
 accountInfo, err := l.GetAccountInfo()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 ```
 
@@ -85,13 +85,13 @@ if err != nil {
 // Fetches current ticker information
 ticker, err := l.GetTicker()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Fetches current orderbook information
 ob, err := l.GetOrderBook()
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Private calls - make sure your APIKEY and APISECRET are set and
@@ -100,13 +100,13 @@ if err != nil {
 // GetUserInfo returns account info
 accountInfo, err := l.GetUserInfo(...)
 if err != nil {
-  // Handle error
+	// Handle error
 }
 
 // Submits an order and the exchange and returns its tradeID
 tradeID, err := l.Trade(...)
 if err != nil {
-  // Handle error
+	// Handle error
 }
 ```
 

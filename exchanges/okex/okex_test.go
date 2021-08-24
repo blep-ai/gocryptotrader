@@ -68,7 +68,6 @@ func TestMain(m *testing.M) {
 	okexConfig.API.Credentials.Key = apiKey
 	okexConfig.API.Credentials.Secret = apiSecret
 	okexConfig.API.Credentials.ClientID = passphrase
-	okexConfig.API.Endpoints.WebsocketURL = o.API.Endpoints.WebsocketURL
 	o.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = o.Setup(okexConfig)
 	if err != nil {
@@ -79,6 +78,111 @@ func TestMain(m *testing.M) {
 
 func areTestAPIKeysSet() bool {
 	return o.ValidateAPICredentials()
+}
+
+func TestUpdateOrderbook(t *testing.T) {
+	tradablePairs, err := o.FetchTradablePairs(asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	if len(tradablePairs) == 0 {
+		t.Fatal("no tradable pairs")
+	}
+	cp, err := currency.NewPairFromString(tradablePairs[0])
+	if err != nil {
+		t.Error(err)
+	}
+	reqPair, err := o.FormatExchangeCurrency(cp, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	cp, err = currency.NewPairFromString(reqPair.String())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = o.UpdateOrderbook(cp, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	cp, err = currency.NewPairFromString("BTC-USD-SWAP")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = o.UpdateOrderbook(cp, asset.PerpetualSwap)
+	if err != nil {
+		t.Error(err)
+	}
+	cp, err = currency.NewPairFromString("BTC-USDT")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = o.UpdateOrderbook(cp, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAllMarginRates(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	_, err := o.GetAllMarginRates()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMarginRates(t *testing.T) {
+	if !areTestAPIKeysSet() {
+		t.Skip("skipping test: api keys not set")
+	}
+	cp, err := currency.NewPairFromString("XRP-USDT")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = o.GetMarginRates(cp)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSpotMarkets(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetSpotMarkets()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapInstruments(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetSwapInstruments()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSwapMarkets(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetSwapMarkets()
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFundingRate(t *testing.T) {
+	t.Parallel()
+	_, err := o.GetFundingRate("BTC-USD-SWAP", "1")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPerpSwapMarkets(t *testing.T) {
+	_, err := o.GetPerpSwapMarkets()
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func testStandardErrorHandling(t *testing.T, err error) {
@@ -529,7 +633,7 @@ func TestGetSpotMarketData(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	currencyPair, err := currency.NewPairFromString("EOS-USDT")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -549,7 +653,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal("unexpected result")
 	}
 
-	swapPair, err := currency.NewPairFromString("BTC-USD_SWAP")
+	swapPair, err := currency.NewPairFromString("EOS-USD_SWAP")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -560,17 +664,18 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	currencyPair, err := currency.NewPairFromString("BTCUSDT")
+	currencyPair, err := currency.NewPairFromString("EOS-USDT")
 	if err != nil {
 		t.Fatal(err)
 	}
-	startTime := time.Unix(1588636800, 0)
-	_, err = o.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, time.Now(), kline.OneMin)
+	startTime := time.Unix(1607494054, 0)
+	endTime := time.Unix(1607594054, 0)
+	_, err = o.GetHistoricCandlesExtended(currencyPair, asset.Spot, startTime, endTime, kline.OneMin)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = o.GetHistoricCandles(currencyPair, asset.Spot, startTime, time.Now(), kline.Interval(time.Hour*7))
+	_, err = o.GetHistoricCandles(currencyPair, asset.Spot, startTime, endTime, kline.Interval(time.Hour*15))
 	if err == nil {
 		t.Fatal("unexpected result")
 	}
@@ -1033,7 +1138,9 @@ func TestGetFuturesFilledOrder(t *testing.T) {
 	_, err := o.GetFuturesFilledOrder(okgroup.GetFuturesFilledOrderRequest{
 		InstrumentID: getFutureInstrumentID(),
 	})
-	testStandardErrorHandling(t, err)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 // TestGetFuturesHoldAmount API endpoint test
@@ -1540,7 +1647,6 @@ func TestOrderBookUpdateChecksumCalculator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(time.Second)
 	err = o.WsHandleData([]byte(update))
 	if err != nil {
 		t.Error(err)
@@ -1555,7 +1661,6 @@ func TestOrderBookUpdateChecksumCalculatorWith8DecimalPlaces(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(time.Second)
 	err = o.WsHandleData([]byte(update))
 	if err != nil {
 		t.Error(err)
@@ -1573,7 +1678,7 @@ func TestOrderBookPartialChecksumCalculator(t *testing.T) {
 
 	calculatedChecksum := o.CalculatePartialOrderbookChecksum(&dataResponse)
 	if calculatedChecksum != dataResponse.Checksum {
-		t.Errorf("Expected %v, Receieved %v", dataResponse.Checksum, calculatedChecksum)
+		t.Errorf("Expected %v, received %v", dataResponse.Checksum, calculatedChecksum)
 	}
 }
 
@@ -1610,58 +1715,47 @@ func TestGetFee(t *testing.T) {
 	t.Parallel()
 	var feeBuilder = setFeeBuilder()
 	// CryptocurrencyTradeFee Basic
-	if resp, err := o.GetFee(feeBuilder); resp != float64(0.0015) || err != nil {
+	if _, err := o.GetFee(feeBuilder); err != nil {
 		t.Error(err)
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.0015), resp)
 	}
 
 	// CryptocurrencyTradeFee High quantity
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Amount = 1000
 	feeBuilder.PurchasePrice = 1000
-	if resp, err := o.GetFee(feeBuilder); resp != float64(1500) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(1500), resp)
+	if _, err := o.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// CryptocurrencyTradeFee IsMaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
-	if resp, err := o.GetFee(feeBuilder); resp != float64(0.0005) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.0005), resp)
+	if _, err := o.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
-
 	// CryptocurrencyTradeFee Negative purchase price
 	feeBuilder = setFeeBuilder()
 	feeBuilder.PurchasePrice = -1000
-	if resp, err := o.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	if _, err := o.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
-
-	// CyptocurrencyDepositFee Basic
+	// CryptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
-	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
-	if resp, err := o.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
+	if _, err := o.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
-
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	if resp, err := o.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	if _, err := o.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
-
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.USD
-	if resp, err := o.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	if _, err := o.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 }
@@ -1687,11 +1781,12 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.BTC,
 			Quote: currency.USDT,
 		},
-		Side:     order.Buy,
-		Type:     order.Limit,
-		Price:    1,
-		Amount:   1,
-		ClientID: "meowOrder",
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     1,
+		Amount:    1,
+		ClientID:  "meowOrder",
+		AssetType: asset.Spot,
 	}
 	response, err := o.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -1739,7 +1834,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 // TestGetAccountInfo Wrapper test
 func TestGetAccountInfo(t *testing.T) {
-	_, err := o.UpdateAccountInfo()
+	_, err := o.UpdateAccountInfo(asset.Spot)
 	testStandardErrorHandling(t, err)
 }
 
@@ -1747,7 +1842,7 @@ func TestGetAccountInfo(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
-	_, err := o.ModifyOrder(&order.Modify{})
+	_, err := o.ModifyOrder(&order.Modify{AssetType: asset.Spot})
 	if err != common.ErrFunctionNotSupported {
 		t.Errorf("Expected '%v', received: '%v'",
 			common.ErrFunctionNotSupported,
@@ -1760,7 +1855,7 @@ func TestWithdraw(t *testing.T) {
 	TestSetRealOrderDefaults(t)
 	t.Parallel()
 	withdrawCryptoRequest := withdraw.Request{
-		Crypto: &withdraw.CryptoRequest{
+		Crypto: withdraw.CryptoRequest{
 			Address:   core.BitcoinDonationAddress,
 			FeeAmount: 1,
 		},
@@ -2129,5 +2224,29 @@ func TestStringToOrderStatus(t *testing.T) {
 		if result != testCases[i].Result {
 			t.Errorf("Exepcted: %v, received: %v", testCases[i].Result, result)
 		}
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("NEO-USDT_SWAP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = o.GetRecentTrades(currencyPair, asset.PerpetualSwap)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	currencyPair, err := currency.NewPairFromString("NEO-USDT_SWAP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = o.GetHistoricTrades(currencyPair, asset.PerpetualSwap, time.Now().Add(-time.Minute*15), time.Now())
+	if err != nil && err != common.ErrFunctionNotSupported {
+		t.Error(err)
 	}
 }

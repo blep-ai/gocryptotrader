@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -54,12 +55,30 @@ func TestMain(m *testing.M) {
 }
 
 func TestStart(t *testing.T) {
+	t.Parallel()
 	var testWg sync.WaitGroup
 	b.Start(&testWg)
 	testWg.Wait()
 }
 
+func TestGetFullFundingHistory(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetFullFundingHistory("", "", "", "", "", true, time.Now().Add(-time.Minute), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetFullFundingHistory("LTCUSD", "1", "", "", "", true, time.Now().Add(-time.Minute), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetUrgentAnnouncement(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.GetUrgentAnnouncement()
 	if err == nil {
 		t.Error("GetUrgentAnnouncement() Expected error")
@@ -67,6 +86,10 @@ func TestGetUrgentAnnouncement(t *testing.T) {
 }
 
 func TestGetAPIKeys(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.GetAPIKeys()
 	if err == nil {
 		t.Error("GetAPIKeys() Expected error")
@@ -74,6 +97,8 @@ func TestGetAPIKeys(t *testing.T) {
 }
 
 func TestRemoveAPIKey(t *testing.T) {
+	t.Parallel()
+
 	_, err := b.RemoveAPIKey(APIKeyParams{APIKeyID: "1337"})
 	if err == nil {
 		t.Error("RemoveAPIKey() Expected error")
@@ -81,6 +106,10 @@ func TestRemoveAPIKey(t *testing.T) {
 }
 
 func TestDisableAPIKey(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.DisableAPIKey(APIKeyParams{APIKeyID: "1337"})
 	if err == nil {
 		t.Error("DisableAPIKey() Expected error")
@@ -88,6 +117,10 @@ func TestDisableAPIKey(t *testing.T) {
 }
 
 func TestEnableAPIKey(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.EnableAPIKey(APIKeyParams{APIKeyID: "1337"})
 	if err == nil {
 		t.Error("EnableAPIKey() Expected error")
@@ -95,13 +128,18 @@ func TestEnableAPIKey(t *testing.T) {
 }
 
 func TestGetTrollboxMessages(t *testing.T) {
-	_, err := b.GetTrollboxMessages(ChatGetParams{Count: 5})
+	t.Parallel()
+	_, err := b.GetTrollboxMessages(ChatGetParams{Count: 1})
 	if err != nil {
 		t.Error("GetTrollboxMessages() error", err)
 	}
 }
 
 func TestSendTrollboxMessage(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.SendTrollboxMessage(ChatSendParams{
 		ChannelID: 1337,
 		Message:   "Hello,World!"})
@@ -111,6 +149,7 @@ func TestSendTrollboxMessage(t *testing.T) {
 }
 
 func TestGetTrollboxChannels(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetTrollboxChannels()
 	if err != nil {
 		t.Error("GetTrollboxChannels() error", err)
@@ -118,6 +157,7 @@ func TestGetTrollboxChannels(t *testing.T) {
 }
 
 func TestGetTrollboxConnectedUsers(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetTrollboxConnectedUsers()
 	if err == nil {
 		t.Error("GetTrollboxConnectedUsers() Expected error")
@@ -125,6 +165,10 @@ func TestGetTrollboxConnectedUsers(t *testing.T) {
 }
 
 func TestGetAccountExecutions(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.GetAccountExecutions(&GenericRequestParams{})
 	if err == nil {
 		t.Error("GetAccountExecutions() Expected error")
@@ -132,6 +176,10 @@ func TestGetAccountExecutions(t *testing.T) {
 }
 
 func TestGetAccountExecutionTradeHistory(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.GetAccountExecutionTradeHistory(&GenericRequestParams{})
 	if err == nil {
 		t.Error("GetAccountExecutionTradeHistory() Expected error")
@@ -139,6 +187,7 @@ func TestGetAccountExecutionTradeHistory(t *testing.T) {
 }
 
 func TestGetFundingHistory(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetFundingHistory()
 	if err == nil {
 		t.Error("GetFundingHistory() Expected error")
@@ -146,13 +195,17 @@ func TestGetFundingHistory(t *testing.T) {
 }
 
 func TestGetInstruments(t *testing.T) {
-	_, err := b.GetInstruments(&GenericRequestParams{})
+	t.Parallel()
+	_, err := b.GetInstruments(&GenericRequestParams{
+		Symbol: "XRPUSD",
+	})
 	if err != nil {
 		t.Error("GetInstruments() error", err)
 	}
 }
 
 func TestGetActiveInstruments(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetActiveInstruments(&GenericRequestParams{})
 	if err != nil {
 		t.Error("GetActiveInstruments() error", err)
@@ -160,6 +213,7 @@ func TestGetActiveInstruments(t *testing.T) {
 }
 
 func TestGetActiveAndIndexInstruments(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetActiveAndIndexInstruments()
 	if err != nil {
 		t.Error("GetActiveAndIndexInstruments() error", err)
@@ -167,6 +221,7 @@ func TestGetActiveAndIndexInstruments(t *testing.T) {
 }
 
 func TestGetActiveIntervals(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetActiveIntervals()
 	if err == nil {
 		t.Error("GetActiveIntervals() Expected error")
@@ -174,13 +229,15 @@ func TestGetActiveIntervals(t *testing.T) {
 }
 
 func TestGetCompositeIndex(t *testing.T) {
-	_, err := b.GetCompositeIndex(&GenericRequestParams{})
-	if err == nil {
-		t.Error("GetCompositeIndex() Expected error")
+	t.Parallel()
+	_, err := b.GetCompositeIndex(".XBT", "", "", "", "", "", time.Time{}, time.Time{})
+	if err != nil {
+		t.Error("GetCompositeIndex() Expected error", err)
 	}
 }
 
 func TestGetIndices(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetIndices()
 	if err != nil {
 		t.Error("GetIndices() error", err)
@@ -188,6 +245,7 @@ func TestGetIndices(t *testing.T) {
 }
 
 func TestGetInsuranceFundHistory(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetInsuranceFundHistory(&GenericRequestParams{})
 	if err != nil {
 		t.Error("GetInsuranceFundHistory() error", err)
@@ -195,6 +253,7 @@ func TestGetInsuranceFundHistory(t *testing.T) {
 }
 
 func TestGetLeaderboard(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetLeaderboard(LeaderboardGetParams{})
 	if err != nil {
 		t.Error("GetLeaderboard() error", err)
@@ -202,6 +261,7 @@ func TestGetLeaderboard(t *testing.T) {
 }
 
 func TestGetAliasOnLeaderboard(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetAliasOnLeaderboard()
 	if err == nil {
 		t.Error("GetAliasOnLeaderboard() Expected error")
@@ -209,6 +269,7 @@ func TestGetAliasOnLeaderboard(t *testing.T) {
 }
 
 func TestGetLiquidationOrders(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetLiquidationOrders(&GenericRequestParams{})
 	if err != nil {
 		t.Error("GetLiquidationOrders() error", err)
@@ -216,6 +277,10 @@ func TestGetLiquidationOrders(t *testing.T) {
 }
 
 func TestGetCurrentNotifications(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.GetCurrentNotifications()
 	if err == nil {
 		t.Error("GetCurrentNotifications() Expected error")
@@ -223,6 +288,10 @@ func TestGetCurrentNotifications(t *testing.T) {
 }
 
 func TestAmendOrder(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.AmendOrder(&OrderAmendParams{})
 	if err == nil {
 		t.Error("AmendOrder() Expected error")
@@ -230,6 +299,10 @@ func TestAmendOrder(t *testing.T) {
 }
 
 func TestCreateOrder(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.CreateOrder(&OrderNewParams{Symbol: "XBTM15",
 		Price:         219.0,
 		ClientOrderID: "mm_bitmex_1a/oemUeQ4CAJZgP3fjHsA",
@@ -240,6 +313,10 @@ func TestCreateOrder(t *testing.T) {
 }
 
 func TestCancelOrders(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.CancelOrders(&OrderCancelParams{})
 	if err == nil {
 		t.Error("CancelOrders() Expected error")
@@ -247,6 +324,10 @@ func TestCancelOrders(t *testing.T) {
 }
 
 func TestCancelAllOrders(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.CancelAllExistingOrders(OrderCancelAllParams{})
 	if err == nil {
 		t.Error("CancelAllOrders(orderCancellation *order.Cancel) (order.CancelAllResponse, error)", err)
@@ -254,6 +335,10 @@ func TestCancelAllOrders(t *testing.T) {
 }
 
 func TestAmendBulkOrders(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.AmendBulkOrders(OrderAmendBulkParams{})
 	if err == nil {
 		t.Error("AmendBulkOrders() Expected error")
@@ -261,6 +346,10 @@ func TestAmendBulkOrders(t *testing.T) {
 }
 
 func TestCreateBulkOrders(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.CreateBulkOrders(OrderNewBulkParams{})
 	if err == nil {
 		t.Error("CreateBulkOrders() Expected error")
@@ -268,6 +357,10 @@ func TestCreateBulkOrders(t *testing.T) {
 }
 
 func TestCancelAllOrdersAfterTime(t *testing.T) {
+	t.Parallel()
+	if areTestAPIKeysSet() && !canManipulateRealOrders {
+		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
+	}
 	_, err := b.CancelAllOrdersAfterTime(OrderCancelAllAfterParams{})
 	if err == nil {
 		t.Error("CancelAllOrdersAfterTime() Expected error")
@@ -275,6 +368,7 @@ func TestCancelAllOrdersAfterTime(t *testing.T) {
 }
 
 func TestClosePosition(t *testing.T) {
+	t.Parallel()
 	_, err := b.ClosePosition(OrderClosePositionParams{})
 	if err == nil {
 		t.Error("ClosePosition() Expected error")
@@ -282,6 +376,7 @@ func TestClosePosition(t *testing.T) {
 }
 
 func TestGetOrderbook(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetOrderbook(OrderBookGetL2Params{Symbol: "XBT"})
 	if err != nil {
 		t.Error("GetOrderbook() error", err)
@@ -289,6 +384,7 @@ func TestGetOrderbook(t *testing.T) {
 }
 
 func TestGetPositions(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetPositions(PositionGetParams{})
 	if err == nil {
 		t.Error("GetPositions() Expected error")
@@ -296,6 +392,7 @@ func TestGetPositions(t *testing.T) {
 }
 
 func TestIsolatePosition(t *testing.T) {
+	t.Parallel()
 	_, err := b.IsolatePosition(PositionIsolateMarginParams{Symbol: "XBT"})
 	if err == nil {
 		t.Error("IsolatePosition() Expected error")
@@ -303,6 +400,7 @@ func TestIsolatePosition(t *testing.T) {
 }
 
 func TestLeveragePosition(t *testing.T) {
+	t.Parallel()
 	_, err := b.LeveragePosition(PositionUpdateLeverageParams{})
 	if err == nil {
 		t.Error("LeveragePosition() Expected error")
@@ -310,6 +408,7 @@ func TestLeveragePosition(t *testing.T) {
 }
 
 func TestUpdateRiskLimit(t *testing.T) {
+	t.Parallel()
 	_, err := b.UpdateRiskLimit(PositionUpdateRiskLimitParams{})
 	if err == nil {
 		t.Error("UpdateRiskLimit() Expected error")
@@ -317,6 +416,7 @@ func TestUpdateRiskLimit(t *testing.T) {
 }
 
 func TestTransferMargin(t *testing.T) {
+	t.Parallel()
 	_, err := b.TransferMargin(PositionTransferIsolatedMarginParams{})
 	if err == nil {
 		t.Error("TransferMargin() Expected error")
@@ -324,6 +424,7 @@ func TestTransferMargin(t *testing.T) {
 }
 
 func TestGetQuotesByBuckets(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetQuotesByBuckets(&QuoteGetBucketedParams{})
 	if err == nil {
 		t.Error("GetQuotesByBuckets() Expected error")
@@ -331,6 +432,7 @@ func TestGetQuotesByBuckets(t *testing.T) {
 }
 
 func TestGetSettlementHistory(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetSettlementHistory(&GenericRequestParams{})
 	if err != nil {
 		t.Error("GetSettlementHistory() error", err)
@@ -338,6 +440,7 @@ func TestGetSettlementHistory(t *testing.T) {
 }
 
 func TestGetStats(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetStats()
 	if err != nil {
 		t.Error("GetStats() error", err)
@@ -345,6 +448,7 @@ func TestGetStats(t *testing.T) {
 }
 
 func TestGetStatsHistorical(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetStatsHistorical()
 	if err != nil {
 		t.Error("GetStatsHistorical() error", err)
@@ -352,6 +456,7 @@ func TestGetStatsHistorical(t *testing.T) {
 }
 
 func TestGetStatSummary(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetStatSummary()
 	if err != nil {
 		t.Error("GetStatSummary() error", err)
@@ -359,19 +464,22 @@ func TestGetStatSummary(t *testing.T) {
 }
 
 func TestGetTrade(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetTrade(&GenericRequestParams{
-		Symbol:    "ETHUSD",
-		StartTime: time.Now().Format(time.RFC3339),
-		Reverse:   true})
+		Symbol:    "XBT",
+		Reverse:   false,
+		StartTime: time.Now().Add(-time.Minute).Format(time.RFC3339),
+	})
 	if err != nil {
 		t.Error("GetTrade() error", err)
 	}
 }
 
 func TestGetPreviousTrades(t *testing.T) {
+	t.Parallel()
 	_, err := b.GetPreviousTrades(&TradeGetBucketedParams{
 		Symbol:  "XBTBTC",
-		Start:   int32(time.Now().Add(-time.Hour * 24).Unix()),
+		Start:   int32(time.Now().Add(-time.Hour).Unix()),
 		Columns: "open,high,low,close,volume",
 	})
 	if err == nil {
@@ -390,6 +498,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+	t.Parallel()
 	var feeBuilder = setFeeBuilder()
 	b.GetFeeByType(feeBuilder)
 	if !areTestAPIKeysSet() {
@@ -404,51 +513,46 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 }
 
 func TestGetFee(t *testing.T) {
+	t.Parallel()
 	var feeBuilder = setFeeBuilder()
 	// CryptocurrencyTradeFee Basic
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0.00075) || err != nil {
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.00075), resp)
 	}
 
 	// CryptocurrencyTradeFee High quantity
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Amount = 1000
 	feeBuilder.PurchasePrice = 1000
-	if resp, err := b.GetFee(feeBuilder); resp != float64(750) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(750), resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// CryptocurrencyTradeFee IsMaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0.0005) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.0005), resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// CryptocurrencyTradeFee Negative purchase price
 	feeBuilder = setFeeBuilder()
 	feeBuilder.PurchasePrice = -1000
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
-	// CyptocurrencyDepositFee Basic
+	// CryptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
-	feeBuilder.FeeType = exchange.CyptocurrencyDepositFee
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -456,8 +560,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	feeBuilder.FiatCurrency = currency.HKD
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 
@@ -465,13 +568,13 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.HKD
-	if resp, err := b.GetFee(feeBuilder); resp != float64(0) || err != nil {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	if _, err := b.GetFee(feeBuilder); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
+	t.Parallel()
 	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.WithdrawCryptoWith2FAText +
 		" & " + exchange.WithdrawCryptoWithEmailText + " & " + exchange.NoFiatWithdrawalsText
 	withdrawPermissions := b.FormatWithdrawPermissions()
@@ -481,8 +584,10 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 }
 
 func TestGetActiveOrders(t *testing.T) {
+	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
-		Type: order.AnyType,
+		Type:      order.AnyType,
+		AssetType: asset.Spot,
 	}
 
 	_, err := b.GetActiveOrders(&getOrdersRequest)
@@ -494,10 +599,12 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
+	t.Parallel()
 	var getOrdersRequest = order.GetOrdersRequest{
 		Type: order.AnyType,
 		Pairs: []currency.Pair{currency.NewPair(currency.LTC,
 			currency.BTC)},
+		AssetType: asset.Spot,
 	}
 
 	_, err := b.GetOrderHistory(&getOrdersRequest)
@@ -515,6 +622,7 @@ func areTestAPIKeysSet() bool {
 }
 
 func TestSubmitOrder(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -524,11 +632,12 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.XBT,
 			Quote: currency.USD,
 		},
-		Side:     order.Buy,
-		Type:     order.Limit,
-		Price:    1,
-		Amount:   1,
-		ClientID: "meowOrder",
+		Side:      order.Buy,
+		Type:      order.Limit,
+		Price:     1,
+		Amount:    1,
+		ClientID:  "meowOrder",
+		AssetType: asset.Futures,
 	}
 	response, err := b.SubmitOrder(orderSubmission)
 	if areTestAPIKeysSet() && (err != nil || !response.IsOrderPlaced) {
@@ -539,6 +648,7 @@ func TestSubmitOrder(t *testing.T) {
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -549,6 +659,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
+		AssetType:     asset.Futures,
 	}
 
 	err := b.CancelOrder(orderCancellation)
@@ -561,6 +672,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -571,6 +683,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
 		Pair:          currencyPair,
+		AssetType:     asset.Futures,
 	}
 
 	resp, err := b.CancelAllOrders(orderCancellation)
@@ -588,13 +701,14 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 }
 
 func TestGetAccountInfo(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() {
-		_, err := b.UpdateAccountInfo()
+		_, err := b.UpdateAccountInfo(asset.Spot)
 		if err != nil {
 			t.Error("GetAccountInfo() error", err)
 		}
 	} else {
-		_, err := b.UpdateAccountInfo()
+		_, err := b.UpdateAccountInfo(asset.Spot)
 		if err == nil {
 			t.Error("GetAccountInfo() error")
 		}
@@ -602,18 +716,20 @@ func TestGetAccountInfo(t *testing.T) {
 }
 
 func TestModifyOrder(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
-	_, err := b.ModifyOrder(&order.Modify{ID: "1337"})
+	_, err := b.ModifyOrder(&order.Modify{ID: "1337", AssetType: asset.Futures})
 	if err == nil {
 		t.Error("ModifyOrder() error")
 	}
 }
 
 func TestWithdraw(t *testing.T) {
+	t.Parallel()
 	withdrawCryptoRequest := withdraw.Request{
-		Crypto: &withdraw.CryptoRequest{
+		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
 		Amount:          -1,
@@ -636,6 +752,7 @@ func TestWithdraw(t *testing.T) {
 }
 
 func TestWithdrawFiat(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -648,6 +765,7 @@ func TestWithdrawFiat(t *testing.T) {
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() && !canManipulateRealOrders {
 		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
 	}
@@ -660,6 +778,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
+	t.Parallel()
 	if areTestAPIKeysSet() {
 		_, err := b.GetDepositAddress(currency.BTC, "")
 		if err != nil {
@@ -675,6 +794,7 @@ func TestGetDepositAddress(t *testing.T) {
 
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
+	t.Parallel()
 	if !b.Websocket.IsEnabled() && !b.API.AuthenticatedWebsocketSupport || !areTestAPIKeysSet() {
 		t.Skip(stream.WebsocketNotEnabled)
 	}
@@ -702,6 +822,7 @@ func TestWsAuth(t *testing.T) {
 }
 
 func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
 	err := b.UpdateTradablePairs(true)
 	if err != nil {
 		t.Fatal(err)
@@ -709,6 +830,7 @@ func TestUpdateTradablePairs(t *testing.T) {
 }
 
 func TestWsPositionUpdate(t *testing.T) {
+	t.Parallel()
 	pressXToJSON := []byte(`{"table":"position",
    "action":"update",
    "data":[{
@@ -725,6 +847,7 @@ func TestWsPositionUpdate(t *testing.T) {
 }
 
 func TestWsInsertExectuionUpdate(t *testing.T) {
+	t.Parallel()
 	pressXToJSON := []byte(`{"table":"execution",
    "action":"insert",
    "data":[{
@@ -748,6 +871,7 @@ func TestWsInsertExectuionUpdate(t *testing.T) {
 }
 
 func TestWSConnectionHandling(t *testing.T) {
+	t.Parallel()
 	pressXToJSON := []byte(`{"info":"Welcome to the BitMEX Realtime API.","version":"1.1.0",
      "timestamp":"2015-01-18T10:14:06.802Z","docs":"https://www.bitmex.com/app/wsAPI","heartbeatEnabled":false}`)
 	err := b.wsHandleData(pressXToJSON)
@@ -757,6 +881,7 @@ func TestWSConnectionHandling(t *testing.T) {
 }
 
 func TestWSSubscriptionHandling(t *testing.T) {
+	t.Parallel()
 	pressXToJSON := []byte(`{"success":true,"subscribe":"trade:ETHUSD",
      "request":{"op":"subscribe","args":["trade:ETHUSD","instrument:ETHUSD"]}}`)
 	err := b.wsHandleData(pressXToJSON)
@@ -766,6 +891,7 @@ func TestWSSubscriptionHandling(t *testing.T) {
 }
 
 func TestWSPositionUpdateHandling(t *testing.T) {
+	t.Parallel()
 	pressXToJSON := []byte(`{"table":"position",
    "action":"update",
    "data":[{
@@ -798,6 +924,7 @@ func TestWSPositionUpdateHandling(t *testing.T) {
 }
 
 func TestWSOrderbookHandling(t *testing.T) {
+	t.Parallel()
 	pressXToJSON := []byte(`{
       "table":"orderBookL2_25",
       "keys":["symbol","id","side"],
@@ -862,12 +989,16 @@ func TestWSOrderbookHandling(t *testing.T) {
       ]
     }`)
 	err = b.wsHandleData(pressXToJSON)
-	if err != nil {
+	if err != nil && err.Error() != "delete error: cannot match ID on linked list 17999995000 not found" {
 		t.Error(err)
+	}
+	if err == nil {
+		t.Error("expecting error")
 	}
 }
 
 func TestWSDeleveragePositionUpdateHandling(t *testing.T) {
+	t.Parallel()
 	pressXToJSON := []byte(`{"table":"position",
    "action":"update",
    "data":[{
@@ -902,6 +1033,7 @@ func TestWSDeleveragePositionUpdateHandling(t *testing.T) {
 }
 
 func TestWSDeleverageExecutionInsertHandling(t *testing.T) {
+	t.Parallel()
 	pressXToJSON := []byte(`{"table":"execution",
    "action":"insert",
    "data":[{
@@ -925,8 +1057,35 @@ func TestWSDeleverageExecutionInsertHandling(t *testing.T) {
 }
 
 func TestWsTrades(t *testing.T) {
+	t.Parallel()
 	pressXToJSON := []byte(`{"table":"trade","action":"insert","data":[{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.3,"tickDirection":"MinusTick","trdMatchID":"c427f7a0-6b26-1e10-5c4e-1bd74daf2a73","grossValue":2583000,"homeNotional":0.9904912836767037,"foreignNotional":255.84389857369254},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.3,"tickDirection":"ZeroMinusTick","trdMatchID":"95eb9155-b58c-70e9-44b7-34efe50302e0","grossValue":2583000,"homeNotional":0.9904912836767037,"foreignNotional":255.84389857369254},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.3,"tickDirection":"ZeroMinusTick","trdMatchID":"e607c187-f25c-86bc-cb39-8afff7aaf2d9","grossValue":2583000,"homeNotional":0.9904912836767037,"foreignNotional":255.84389857369254},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":17,"price":258.3,"tickDirection":"ZeroMinusTick","trdMatchID":"0f076814-a57d-9a59-8063-ad6b823a80ac","grossValue":439110,"homeNotional":0.1683835182250396,"foreignNotional":43.49346275752773},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.25,"tickDirection":"MinusTick","trdMatchID":"f4ef3dfd-51c4-538f-37c1-e5071ba1c75d","grossValue":2582500,"homeNotional":0.9904912836767037,"foreignNotional":255.79437400950872},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.25,"tickDirection":"ZeroMinusTick","trdMatchID":"81ef136b-8f4a-b1cf-78a8-fffbfa89bf40","grossValue":2582500,"homeNotional":0.9904912836767037,"foreignNotional":255.79437400950872},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.25,"tickDirection":"ZeroMinusTick","trdMatchID":"65a87e8c-7563-34a4-d040-94e8513c5401","grossValue":2582500,"homeNotional":0.9904912836767037,"foreignNotional":255.79437400950872},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":15,"price":258.25,"tickDirection":"ZeroMinusTick","trdMatchID":"1d11a74e-a157-3f33-036d-35a101fba50b","grossValue":387375,"homeNotional":0.14857369255150554,"foreignNotional":38.369156101426306},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":1,"price":258.25,"tickDirection":"ZeroMinusTick","trdMatchID":"40d49df1-f018-f66f-4ca5-31d4997641d7","grossValue":25825,"homeNotional":0.009904912836767036,"foreignNotional":2.5579437400950873},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.2,"tickDirection":"MinusTick","trdMatchID":"36135b51-73e5-c007-362b-a55be5830c6b","grossValue":2582000,"homeNotional":0.9904912836767037,"foreignNotional":255.7448494453249},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"6ee19edb-99aa-3030-ba63-933ffb347ade","grossValue":2582000,"homeNotional":0.9904912836767037,"foreignNotional":255.7448494453249},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"d44be603-cdb8-d676-e3e2-f91fb12b2a70","grossValue":2582000,"homeNotional":0.9904912836767037,"foreignNotional":255.7448494453249},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":5,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"a14b43b3-50b4-c075-c54d-dfb0165de33d","grossValue":129100,"homeNotional":0.04952456418383518,"foreignNotional":12.787242472266245},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":8,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"3c30e175-5194-320c-8f8c-01636c2f4a32","grossValue":206560,"homeNotional":0.07923930269413629,"foreignNotional":20.45958795562599},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":50,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"5b803378-760b-4919-21fc-bfb275d39ace","grossValue":1291000,"homeNotional":0.49524564183835185,"foreignNotional":127.87242472266244},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":244,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"cf57fec1-c444-b9e5-5e2d-4fb643f4fdb7","grossValue":6300080,"homeNotional":2.416798732171157,"foreignNotional":624.0174326465927}]}`)
 	err := b.wsHandleData(pressXToJSON)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	t.Parallel()
+	err := b.UpdateTradablePairs(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	currencyPair := b.CurrencyPairs.Pairs[asset.Futures].Available[0]
+	_, err = b.GetRecentTrades(currencyPair, asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	t.Parallel()
+	err := b.UpdateTradablePairs(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	currencyPair := b.CurrencyPairs.Pairs[asset.Futures].Available[0]
+	_, err = b.GetHistoricTrades(currencyPair, asset.Futures, time.Now().Add(-time.Minute), time.Now())
 	if err != nil {
 		t.Error(err)
 	}

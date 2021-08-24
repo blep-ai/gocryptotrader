@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -39,11 +40,7 @@ func (b *BTCMarkets) WsConnect() error {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", b.Name)
 	}
 	go b.wsReadData()
-	subs, err := b.generateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return b.Websocket.SubscribeToChannels(subs)
+	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -86,7 +83,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		var bids, asks []orderbook.Item
+		var bids, asks orderbook.Items
 		for x := range ob.Bids {
 			var price, amount float64
 			price, err = strconv.ParseFloat(ob.Bids[x][0].(string), 64)
@@ -120,13 +117,15 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			})
 		}
 		if ob.Snapshot {
+			bids.SortBids() // Alignment completely out, sort is needed.
 			err = b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-				Pair:         p,
-				Bids:         bids,
-				Asks:         asks,
-				LastUpdated:  ob.Timestamp,
-				AssetType:    asset.Spot,
-				ExchangeName: b.Name,
+				Pair:            p,
+				Bids:            bids,
+				Asks:            asks,
+				LastUpdated:     ob.Timestamp,
+				Asset:           asset.Spot,
+				Exchange:        b.Name,
+				VerifyOrderbook: b.CanVerifyOrderbook,
 			})
 		} else {
 			err = b.Websocket.Orderbook.Update(&buffer.Update{
@@ -142,32 +141,35 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			return err
 		}
 	case tradeEndPoint:
-		var trade WsTrade
-		err := json.Unmarshal(respRaw, &trade)
+		if !b.IsSaveTradeDataEnabled() {
+			return nil
+		}
+		var t WsTrade
+		err := json.Unmarshal(respRaw, &t)
 		if err != nil {
 			return err
 		}
 
-		p, err := currency.NewPairFromString(trade.Currency)
+		p, err := currency.NewPairFromString(t.Currency)
 		if err != nil {
 			return err
 		}
 
 		side := order.Buy
-		if trade.Side == "Ask" {
+		if t.Side == "Ask" {
 			side = order.Sell
 		}
 
-		b.Websocket.DataHandler <- stream.TradeData{
-			Timestamp:    trade.Timestamp,
+		return trade.AddTradesToBuffer(b.Name, trade.Data{
+			Timestamp:    t.Timestamp,
 			CurrencyPair: p,
 			AssetType:    asset.Spot,
 			Exchange:     b.Name,
-			Price:        trade.Price,
-			Amount:       trade.Volume,
+			Price:        t.Price,
+			Amount:       t.Volume,
 			Side:         side,
-			EventType:    order.UnknownType,
-		}
+			TID:          strconv.FormatInt(t.TradeID, 10),
+		})
 	case tick:
 		var tick WsTick
 		err := json.Unmarshal(respRaw, &tick)

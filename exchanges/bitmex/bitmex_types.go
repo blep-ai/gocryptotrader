@@ -450,11 +450,11 @@ type Settlement struct {
 
 // Stats Exchange Statistics
 type Stats struct {
-	Currency     string `json:"currency"`
-	OpenValue    int64  `json:"openValue"`
-	RootSymbol   string `json:"rootSymbol"`
-	Turnover24h  int64  `json:"turnover24h"`
-	Volume24h    int64  `json:"volume24h"`
+	Currency    string `json:"currency"`
+	OpenValue   int64  `json:"openValue"`
+	RootSymbol  string `json:"rootSymbol"`
+	Turnover24h int64  `json:"turnover24h"`
+	Volume24h   int64  `json:"volume24h"`
 }
 
 // StatsHistory stats history

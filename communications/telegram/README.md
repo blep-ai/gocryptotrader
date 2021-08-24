@@ -1,9 +1,9 @@
 # GoCryptoTrader package Telegram
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
 
-[![Build Status](https://travis-ci.org/thrasher-corp/gocryptotrader.svg?branch=master)](https://travis-ci.org/thrasher-corp/gocryptotrader)
+[![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/thrasher-corp/gocryptotrader?status.svg)](https://godoc.org/github.com/thrasher-corp/gocryptotrader/communications/telegram)
 [![Coverage Status](http://codecov.io/github/thrasher-corp/gocryptotrader/coverage.svg?branch=master)](http://codecov.io/github/thrasher-corp/gocryptotrader?branch=master)
@@ -29,42 +29,42 @@ developed by Telegram Messenger LLP
 ### Current Features
 
 + Creation of bot that can retrieve
-  - Bot status
+	- Bot status
 
-  ### How to enable
+	### How to enable
 
-  + [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-communications-via-config-example)
+	+ [Enable via configuration](https://github.com/thrasher-corp/gocryptotrader/tree/master/config#enable-communications-via-config-example)
 
-  + Individual package example below:
-  ```go
-  import (
-  "github.com/thrasher-corp/gocryptotrader/communications/telegram"
-  "github.com/thrasher-corp/gocryptotrader/config"
-  )
+	+ Individual package example below:
+	```go
+	import (
+	"github.com/thrasher-corp/gocryptotrader/communications/telegram"
+	"github.com/thrasher-corp/gocryptotrader/config"
+	)
 
-  t := new(telegram.Telegram)
+	t := new(telegram.Telegram)
 
-  // Define Telegram configuration
-  commsConfig := config.CommunicationsConfig{TelegramConfig: config.TelegramConfig{
-    Name: "Telegram",
-  	Enabled: true,
-  	Verbose: false,
-    VerificationToken: "token",
-  }}
+	// Define Telegram configuration
+	commsConfig := config.CommunicationsConfig{TelegramConfig: config.TelegramConfig{
+	Name: "Telegram",
+		Enabled: true,
+		Verbose: false,
+	VerificationToken: "token",
+	}}
 
-  t.Setup(commsConfig)
-  err := t.Connect
-  // Handle error
-  ```
+	t.Setup(commsConfig)
+	err := t.Connect
+	// Handle error
+	```
 
 + Once the bot has started you can interact with the bot using these commands
 via Telegram:
 
 ```
-/start  		- Will authenticate your ID
-/status 		- Displays the status of the bot
-/help 			- Displays current command list
-/settings 	- Displays current bot settings
+/start			- Will authenticate your ID
+/status			- Displays the status of the bot
+/help			- Displays current command list
+/settings		- Displays current bot settings
 ```
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package

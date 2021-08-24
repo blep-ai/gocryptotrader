@@ -4,12 +4,13 @@
   "orderType": "LIMIT",
   "amount": 1333333337,
   "price": 1333333337,
-  "orderID": ""
+  "orderID": "",
+  "assetType": ""
  },
  "withdrawWalletAddress": "",
  "bankAccount": {
   "bankAccountName": "bankAccountName",
-  "bankAccountNumber": 1337,
+  "bankAccountNumber": "1337",
   "bankAddress": "bankAddress",
   "bankCity": "bankCity",
   "bankCountry": "bankCountry",
@@ -33,7 +34,6 @@
   "intermediaryBankCode": 1337
  },
  "exchanges": {
-  "alphapoint": {},
   "binance": {
    "key": "Key",
    "secret": "Secret",
@@ -101,6 +101,11 @@
    "secret": "Secret",
    "otpSecret": "-"
   },
+  "ftx": {
+   "key": "Key",
+   "secret": "Secret",
+   "otpSecret": "-"
+  },
   "gateio": {
    "key": "Key",
    "secret": "Secret",
@@ -127,11 +132,6 @@
    "otpSecret": "-"
   },
   "kraken": {
-   "key": "Key",
-   "secret": "Secret",
-   "otpSecret": "-"
-  },
-  "lakebtc": {
    "key": "Key",
    "secret": "Secret",
    "otpSecret": "-"

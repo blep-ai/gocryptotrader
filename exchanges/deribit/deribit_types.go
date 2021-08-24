@@ -3,20 +3,27 @@ package deribit
 import "encoding/json"
 
 type Kind string
+
 const (
 	Future Kind = "future"
 	Option      = "option"
 	NA          = ""
 )
 
+type errorCapture struct {
+	Status    string `json:"status"`
+	Code      int64  `json:"err_code"`
+	ErrMsg    string `json:"err_msg"`
+	Timestamp int64  `json:"ts"`
+}
 
 // remove 'kind' for options and futures and perp etc
 // /public/get_instruments
 //{"method":"public/get_instruments","params":{"currency":"BTC","kind":"future","expired":false},"jsonrpc":"2.0","id":0}
 //{"method":"public/get_instruments","params":{"currency":"ETH","kind":"future","expired":false},"jsonrpc":"2.0","id":0}
 type Instruments struct {
-	Jsonrpc string `json:"jsonrpc"`
-	ID      int    `json:"id"`
+	Jsonrpc string       `json:"jsonrpc"`
+	ID      int          `json:"id"`
 	Result  []Instrument `json:"result"`
 	//UsIn    int64 `json:"usIn"`
 	//UsOut   int64 `json:"usOut"`
@@ -44,12 +51,12 @@ type Instrument struct {
 }
 
 type SubscribeWrapper struct {
-	Method  string `json:"method"`
-	Params  struct {
-		Channel string `json:"channel"`
-		Data json.RawMessage `json:"data"`
+	Method string `json:"method"`
+	Params struct {
+		Channel string          `json:"channel"`
+		Data    json.RawMessage `json:"data"`
 	} `json:"params"`
-	Error   struct {
+	Error struct {
 		Message string `json:"message"`
 		Code    int    `json:"code"`
 	} `json:"error"`
@@ -62,22 +69,22 @@ type Ticker struct {
 	UnderlyingIndex string  `json:"underlying_index"`
 	Timestamp       int64   `json:"timestamp"`
 	Stats           struct {
-		Volume        float64 `json:"volume"`
-		PriceChange   float64 `json:"price_change"`
-		Low           float64 `json:"low"`
-		High          float64 `json:"high"`
+		Volume      float64 `json:"volume"`
+		PriceChange float64 `json:"price_change"`
+		Low         float64 `json:"low"`
+		High        float64 `json:"high"`
 	} `json:"stats"`
-	State           string      `json:"state"`
-	SettlementPrice float64     `json:"settlement_price"`
-	OpenInterest    float64     `json:"open_interest"`
-	MinPrice        float64     `json:"min_price"`
-	MaxPrice        float64     `json:"max_price"`
-	MarkPrice       float64     `json:"mark_price"`
-	MarkIv          float64     `json:"mark_iv"`
-	LastPrice       float64     `json:"last_price"`
-	InterestRate    float64     `json:"interest_rate"`
-	InstrumentName  string      `json:"instrument_name"`
-	IndexPrice      float64     `json:"index_price"`
+	State           string  `json:"state"`
+	SettlementPrice float64 `json:"settlement_price"`
+	OpenInterest    float64 `json:"open_interest"`
+	MinPrice        float64 `json:"min_price"`
+	MaxPrice        float64 `json:"max_price"`
+	MarkPrice       float64 `json:"mark_price"`
+	MarkIv          float64 `json:"mark_iv"`
+	LastPrice       float64 `json:"last_price"`
+	InterestRate    float64 `json:"interest_rate"`
+	InstrumentName  string  `json:"instrument_name"`
+	IndexPrice      float64 `json:"index_price"`
 	Greeks          struct {
 		Vega  float64 `json:"vega"`
 		Theta float64 `json:"theta"`
