@@ -1,3 +1,6 @@
+This repo is forked from https://github.com/thrasher-corp/gocryptotrader with minor Blep specific modifications.
+
+
 <img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
